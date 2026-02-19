@@ -7,6 +7,12 @@ function env_or_default(string $key, string $default): string {
 }
 
 $databaseUrl = getenv('DATABASE_URL');
+if ($databaseUrl === false || $databaseUrl === '') {
+    $databaseUrl = getenv('DATABASE_PRIVATE_URL');
+}
+if ($databaseUrl === false || $databaseUrl === '') {
+    $databaseUrl = getenv('MYSQL_URL');
+}
 
 if ($databaseUrl !== false && $databaseUrl !== '') {
     $parts = parse_url($databaseUrl);
@@ -17,13 +23,40 @@ if ($databaseUrl !== false && $databaseUrl !== '') {
     $DB_PASS = $parts['pass'] ?? 'admin';
 } else {
     // 127.0.0.1 is used instead of localhost to force TCP (not unix socket)
-    $DB_HOST = env_or_default('MYSQLHOST', env_or_default('DB_HOST', '127.0.0.1'));
-    $DB_PORT = env_or_default('MYSQLPORT', env_or_default('DB_PORT', '3306'));
-    $DB_NAME = env_or_default('MYSQLDATABASE', env_or_default('DB_NAME', 'academic_tracker'));
-    $DB_USER = env_or_default('MYSQLUSER', env_or_default('DB_USER', 'tracker_user'));
-    $DB_PASS = env_or_default('MYSQLPASSWORD', env_or_default('DB_PASS', 'admin'));
+    $DB_HOST = env_or_default('MYSQLHOST', env_or_default('MYSQL_HOST', env_or_default('DB_HOST', '127.0.0.1')));
+    $DB_PORT = env_or_default('MYSQLPORT', env_or_default('MYSQL_PORT', env_or_default('DB_PORT', '3306')));
+    $DB_NAME = env_or_default('MYSQLDATABASE', env_or_default('MYSQL_DATABASE', env_or_default('DB_NAME', 'academic_tracker')));
+    $DB_USER = env_or_default('MYSQLUSER', env_or_default('MYSQL_USER', env_or_default('DB_USER', 'tracker_user')));
+    $DB_PASS = env_or_default('MYSQLPASSWORD', env_or_default('MYSQL_PASSWORD', env_or_default('DB_PASS', 'admin')));
 }
 $DB_CHARSET = 'utf8mb4';
+
+// On Railway, fail fast with a clear message if DB vars are missing
+$isRailway = (getenv('RAILWAY_ENVIRONMENT') !== false) || (getenv('RAILWAY_PROJECT_ID') !== false);
+if ($isRailway) {
+    $usingLocalFallback = ($DB_HOST === '127.0.0.1' && $DB_PORT === '3306' && $DB_NAME === 'academic_tracker');
+    $dbNameWasInjected = (getenv('MYSQLDATABASE') !== false && getenv('MYSQLDATABASE') !== '')
+        || (getenv('MYSQL_DATABASE') !== false && getenv('MYSQL_DATABASE') !== '')
+        || (getenv('DB_NAME') !== false && getenv('DB_NAME') !== '')
+        || ($databaseUrl !== false && $databaseUrl !== '');
+    if ($usingLocalFallback) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Railway DB variables are missing in this web service. Add a MySQL service and expose MYSQLHOST, MYSQLPORT, MYSQLDATABASE, MYSQLUSER, MYSQLPASSWORD (or DATABASE_URL / MYSQL_URL).'
+        ]);
+        exit;
+    }
+
+    if ($DB_NAME === 'academic_tracker' && !$dbNameWasInjected) {
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => 'Database name is not set from Railway variables. Add MYSQLDATABASE (or MYSQL_DATABASE / DB_NAME / DATABASE_URL) to the web service variables.'
+        ]);
+        exit;
+    }
+}
 
 $dsn = "mysql:host={$DB_HOST};port={$DB_PORT};dbname={$DB_NAME};charset={$DB_CHARSET}";
 $options = [
