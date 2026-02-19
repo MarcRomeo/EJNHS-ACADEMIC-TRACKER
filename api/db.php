@@ -6,11 +6,23 @@ function env_or_default(string $key, string $default): string {
     return ($value === false || $value === '') ? $default : $value;
 }
 
-$DB_HOST = env_or_default('MYSQLHOST', 'localhost');
-$DB_PORT = env_or_default('MYSQLPORT', '3306');
-$DB_NAME = env_or_default('MYSQLDATABASE', 'academic_tracker');
-$DB_USER = env_or_default('MYSQLUSER', 'tracker_user');
-$DB_PASS = env_or_default('MYSQLPASSWORD', 'admin');
+$databaseUrl = getenv('DATABASE_URL');
+
+if ($databaseUrl !== false && $databaseUrl !== '') {
+    $parts = parse_url($databaseUrl);
+    $DB_HOST = $parts['host'] ?? '127.0.0.1';
+    $DB_PORT = isset($parts['port']) ? (string)$parts['port'] : '3306';
+    $DB_NAME = isset($parts['path']) ? ltrim($parts['path'], '/') : 'academic_tracker';
+    $DB_USER = $parts['user'] ?? 'tracker_user';
+    $DB_PASS = $parts['pass'] ?? 'admin';
+} else {
+    // 127.0.0.1 is used instead of localhost to force TCP (not unix socket)
+    $DB_HOST = env_or_default('MYSQLHOST', env_or_default('DB_HOST', '127.0.0.1'));
+    $DB_PORT = env_or_default('MYSQLPORT', env_or_default('DB_PORT', '3306'));
+    $DB_NAME = env_or_default('MYSQLDATABASE', env_or_default('DB_NAME', 'academic_tracker'));
+    $DB_USER = env_or_default('MYSQLUSER', env_or_default('DB_USER', 'tracker_user'));
+    $DB_PASS = env_or_default('MYSQLPASSWORD', env_or_default('DB_PASS', 'admin'));
+}
 $DB_CHARSET = 'utf8mb4';
 
 $dsn = "mysql:host={$DB_HOST};port={$DB_PORT};dbname={$DB_NAME};charset={$DB_CHARSET}";
