@@ -1,0 +1,72 @@
+[
+    {
+        "id": "parent_697a146367bc17.24154664",
+        "name": "Aljan Ramirez",
+        "email": "ramirezaljan@gmail.com",
+        "phone": "09927660431",
+        "childName": "Marc Romeo Vilchez",
+        "childGrade": "Grade 11",
+        "relationship": "Parent",
+        "password": "$2y$10$BoTJLlUlw5vMK3sMegrWauQ6DYFjzB4uow2hBrNk04vDkevFh9Uia",
+        "signupCode": "3E26BC6CED79",
+        "signupCodeUsed": false,
+        "linkedChildren": [],
+        "createdAt": "2026-01-28 14:51:31"
+    },
+    {
+        "id": "parent_697aaa6ab689b4.73201979",
+        "name": "Marc Romeo T Banz",
+        "email": "marcvilchez81@gmail.com",
+        "phone": "09927660431",
+        "childName": "Fraco Eneres",
+        "childGrade": "Grade 11",
+        "relationship": "Parent",
+        "password": "$2y$10$kGHI7vZv0qPaHvRekX6LDu4Bjx\/3z1S\/eU3yXGdTrj1hRKCVzEf6C",
+        "signupCode": "A18CFAE58B4F",
+        "signupCodeUsed": false,
+        "linkedChildren": [],
+        "createdAt": "2026-01-29 01:31:38"
+    },
+    {
+        "id": "parent_697ac239000884.45127699",
+        "name": "Aljan Ramirez",
+        "email": "trishadelacruz74@gmail.com",
+        "phone": "09927660431",
+        "childName": "Marc Romeo Vilchez",
+        "childGrade": "Grade 12",
+        "relationship": "Parent",
+        "password": "$2y$10$wO9qCr31YRx9GniUwW3O5uEWHXWIR5UpLeGQNMiqKWp77mx2m0Kp6",
+        "signupCode": "AA317C562E12",
+        "signupCodeUsed": false,
+        "linkedChildren": [],
+        "createdAt": "2026-01-29 03:13:13"
+    },
+    {
+        "id": "parent_697ac385566ea9.47741906",
+        "name": "Trisha Delaruz",
+        "email": "trishamisha56@gmail.com",
+        "phone": "09702432538",
+        "childName": "Allison Buen Batumbakal",
+        "childGrade": "Grade 12",
+        "relationship": "Parent",
+        "password": "$2y$10$Rlb4aiS8fugXIlLWw3jrUu8tvRcCYVOX7P3lui2U.KEudvrgOVDsS",
+        "signupCode": "CAD3D7B3064D",
+        "signupCodeUsed": false,
+        "linkedChildren": [],
+        "createdAt": "2026-01-29 03:18:45"
+    },
+    {
+        "id": "parent_698c6b664e6185.59906961",
+        "name": "test123",
+        "email": "test@gmail.com",
+        "phone": "000000000000000",
+        "childName": "frank",
+        "childGrade": "Grade 11",
+        "relationship": "Parent",
+        "password": "$2y$12$4d9DbSh.cnfjNxR8ha5dz.\/W5mulYffEjVLLhIi.uCvmUhqzriODy",
+        "signupCode": "C149FB293D35",
+        "signupCodeUsed": false,
+        "linkedChildren": [],
+        "createdAt": "2026-02-11 11:43:34"
+    }
+]

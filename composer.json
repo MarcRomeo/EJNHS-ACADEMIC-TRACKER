@@ -1,0 +1,10 @@
+{
+  "name": "academic-tracker/app",
+  "description": "Academic Tracker PHP application",
+  "type": "project",
+  "require": {
+    "php": ">=8.1",
+    "ext-pdo": "*",
+    "ext-pdo_mysql": "*"
+  }
+}

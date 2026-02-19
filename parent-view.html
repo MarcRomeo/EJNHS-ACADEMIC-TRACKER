@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Parent Portal - Student Grades</title>
+  <link rel="icon" type="image/png" href="logo.png"/>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: Arial, sans-serif; 
+      background: #f9fafb; 
+      padding: 20px; 
+    }
+    .header {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .header h1 {
+      color: #111827;
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+    .header p {
+      color: #6b7280;
+      font-size: 0.9rem;
+    }
+    .card { 
+      background: #fff; 
+      padding: 20px; 
+      border-radius: 8px; 
+      margin-bottom: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .card h3 {
+      color: #111827;
+      margin-bottom: 15px;
+      font-size: 1.2rem;
+    }
+    .search-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .search-box input,
+    .search-box select {
+      flex: 1;
+      padding: 10px;
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+    .search-box button {
+      padding: 10px 24px;
+      background: #2563eb;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .search-box button:hover {
+      background: #1d4ed8;
+    }
+    .student-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      padding: 15px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+    }
+    .student-card h2 {
+      color: #111827;
+      font-size: 1.3rem;
+      margin-bottom: 10px;
+    }
+    .student-card p {
+      color: #374151;
+      margin: 6px 0;
+      font-size: 0.95rem;
+    }
+    .student-card strong {
+      color: #111827;
+      font-weight: 600;
+    }
+    hr {
+      border: none;
+      border-top: 1px solid #e5e7eb;
+      margin: 15px 0;
+    }
+    .grade-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+      background: #fff;
+      border-radius: 4px;
+      margin-bottom: 8px;
+      border-left: 3px solid #2563eb;
+    }
+    .grade-label {
+      color: #374151;
+      font-weight: 500;
+    }
+    .grade-value {
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+    .passed { 
+      color: #059669; 
+      font-weight: bold; 
+    }
+    .failed { 
+      color: #dc2626; 
+      font-weight: bold; 
+    }
+    .final-grade {
+      background: #dbeafe;
+      padding: 15px;
+      border-radius: 6px;
+      margin-top: 15px;
+      text-align: center;
+    }
+    .final-grade-label {
+      color: #1e40af;
+      font-size: 0.9rem;
+      margin-bottom: 8px;
+    }
+    .final-grade-value {
+      font-size: 2.5rem;
+      font-weight: bold;
+      color: #1e3a8a;
+    }
+    .no-results {
+      text-align: center;
+      padding: 40px 20px;
+      color: #9ca3af;
+    }
+    .filter-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+    .chip {
+      background: #e5e7eb;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      color: #374151;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .chip:hover {
+      background: #d1d5db;
+    }
+    .chip.active {
+      background: #2563eb;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>Parent Portal</h1>
+    <p>View your child's grades and academic performance</p>
+  </div>
+
+  <!-- Search and Filter -->
+  <div class="card">
+    <h3>Search Students</h3>
+    
+    <div class="filter-chips">
+      <div class="chip active" onclick="filterByGrade('all')">All Grades</div>
+      <div class="chip" onclick="filterByGrade('Grade 11')">Grade 11</div>
+      <div class="chip" onclick="filterByGrade('Grade 12')">Grade 12</div>
+    </div>
+
+    <div class="filter-chips">
+      <div class="chip active" onclick="filterByStrand('all')">All Strands</div>
+      <div class="chip" onclick="filterByStrand('HE')">HE</div>
+      <div class="chip" onclick="filterByStrand('ABM')">ABM</div>
+      <div class="chip" onclick="filterByStrand('HUMSS')">HUMSS</div>
+      <div class="chip" onclick="filterByStrand('CCS')">CCS</div>
+      <div class="chip" onclick="filterByStrand('STEM')">STEM</div>
+    </div>
+
+    <div class="search-box">
+      <input type="text" id="searchInput" placeholder="Search by student name or child code..." onkeyup="searchStudents()">
+      <button onclick="searchStudents()">Search</button>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div class="card">
+    <h3>Student Grades</h3>
+    <div id="result">
+      <p class="no-results">Loading students...</p>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = './api';
+    let allStudents = [];
+    let currentGradeFilter = 'all';
+    let currentStrandFilter = 'all';
+
+    // Load all students on page load
+    window.onload = function() {
+      loadAllStudents();
+    };
+
+    // Load all students from API
+    async function loadAllStudents() {
+      try {
+        const response = await fetch(`${API_BASE}/admin.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'getStudents' })
+        });
+
+        const result = await response.json();
+
+        if (result.success && result.students.length > 0) {
+          allStudents = result.students;
+          displayStudents(allStudents);
+        } else {
+          document.getElementById('result').innerHTML = '<p class="no-results">No students found in the system.</p>';
+        }
+      } catch (error) {
+        console.error('Error loading students:', error);
+        document.getElementById('result').innerHTML = '<p class="no-results" style="color: #dc2626;">Error loading students. Please try again.</p>';
+      }
+    }
+
+    // Filter by grade
+    function filterByGrade(grade) {
+      currentGradeFilter = grade;
+      updateChips('grade', grade);
+      applyFilters();
+    }
+
+    // Filter by strand
+    function filterByStrand(strand) {
+      currentStrandFilter = strand;
+      updateChips('strand', strand);
+      applyFilters();
+    }
+
+    // Update active chips
+    function updateChips(type, value) {
+      const chips = document.querySelectorAll('.chip');
+      chips.forEach(chip => {
+        if ((type === 'grade' && chip.textContent.includes('Grade')) || 
+            (type === 'grade' && chip.textContent === 'All Grades') ||
+            (type === 'strand' && !chip.textContent.includes('Grade') && chip.textContent !== 'All Grades')) {
+          chip.classList.remove('active');
+          if ((type === 'grade' && (chip.textContent === value || (value === 'all' && chip.textContent === 'All Grades'))) ||
+              (type === 'strand' && (chip.textContent === value || (value === 'all' && chip.textContent === 'All Strands')))) {
+            chip.classList.add('active');
+          }
+        }
+      });
+    }
+
+    // Apply all filters
+    function applyFilters() {
+      let filtered = allStudents;
+
+      // Filter by grade
+      if (currentGradeFilter !== 'all') {
+        filtered = filtered.filter(s => s.grade === currentGradeFilter);
+      }
+
+      // Filter by strand
+      if (currentStrandFilter !== 'all') {
+        filtered = filtered.filter(s => s.section === currentStrandFilter);
+      }
+
+      // Apply search
+      const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+      if (searchTerm) {
+        filtered = filtered.filter(s => 
+          s.name.toLowerCase().includes(searchTerm) || 
+          s.childCode.toLowerCase().includes(searchTerm)
+        );
+      }
+
+      displayStudents(filtered);
+    }
+
+    // Search students
+    function searchStudents() {
+      applyFilters();
+    }
+
+    // Display students
+    function displayStudents(students) {
+      const container = document.getElementById('result');
+
+      if (students.length === 0) {
+        container.innerHTML = '<p class="no-results">No students match your search criteria.</p>';
+        return;
+      }
+
+      container.innerHTML = students.map(student => {
+        const subjects = student.subjects || [];
+        
+        // Get grade components
+        const writtenWorks = subjects.find(s => s.title === 'Written Works (30%)')?.grade || 'N/A';
+        const performanceTasks = subjects.find(s => s.title === 'Performance Tasks (50%)')?.grade || 'N/A';
+        const quarterlyAssessment = subjects.find(s => s.title === 'Quarterly Assessment (20%)')?.grade || 'N/A';
+        const finalGrade = subjects.find(s => s.title === 'Final Grade')?.grade || 'N/A';
+        
+        // Determine if passed or failed
+        const gradeNum = parseFloat(finalGrade);
+        const passedClass = gradeNum >= 75 ? 'passed' : 'failed';
+        const passedText = gradeNum >= 75 ? 'PASSED' : 'FAILED';
+        
+        return `
+          <div class="student-card">
+            <h2>${student.name}</h2>
+            <p>Grade Level: <strong>${student.grade}</strong></p>
+            <p>Strand: <strong>${student.section}</strong></p>
+            <p style="font-size: 0.85rem; color: #6b7280;">Child Code: <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;">${student.childCode}</code></p>
+
+            <hr>
+
+            <div class="grade-row">
+              <span class="grade-label">Written Works (30%)</span>
+              <span class="grade-value">${writtenWorks}</span>
+            </div>
+
+            <div class="grade-row">
+              <span class="grade-label">Performance Tasks (50%)</span>
+              <span class="grade-value">${performanceTasks}</span>
+            </div>
+
+            <div class="grade-row">
+              <span class="grade-label">Quarterly Assessment (20%)</span>
+              <span class="grade-value">${quarterlyAssessment}</span>
+            </div>
+
+            <div class="final-grade">
+              <div class="final-grade-label">FINAL GRADE</div>
+              <div class="final-grade-value ${passedClass}">${finalGrade}</div>
+              <div style="margin-top: 8px;">
+                <span class="${passedClass}" style="font-size: 1.1rem;">${passedText}</span>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+  </script>
+</body>
+</html>

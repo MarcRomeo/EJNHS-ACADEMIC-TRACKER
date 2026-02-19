@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Emilio Jacinto NHS - Academic Tracker</title>
+  <link rel="icon" type="image/png" href="logo.png"/>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <link rel="stylesheet" href="styles.css" />
+  <!-- jsPDF for PDF generation (used by admin to send grade PDFs) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+  <header>
+    <img src="logo.png" alt="School Logo" />
+    <h1>Emilio Jacinto NHS - Academic Tracker</h1>
+    <!-- header actions removed: use center hud controls for Login/Signup -->
+  </header>
+
+  <main>
+    <!-- Home -->
+    <section class="container" id="home">
+      <h2>Welcome to Academic Tracking System</h2>
+      <p>
+        <b>Admins</b> and <b>Parents</b> (Grade 11 - 12 CCS only) can track and manage student performance.
+        <span class="muted">Restricted access for Grade 11 &amp; 12 CCS learners.</span>
+      </p>
+
+      <div class="hud-boxes">
+        <div class="hud-box">
+          <h3>Login</h3>
+          <button id="openLoginTypeBtn"><i class="fas fa-sign-in-alt"></i> Login / Parent</button>
+        </div>
+        <div class="hud-box">
+          <h3>Signup (Parents)</h3>
+          <button id="signupWithGoogleBtn"><i class="fab fa-google"></i> Signup</button>
+        </div>
+        <div class="hud-box">
+          <h3>Parent Portal</h3>
+          <a href="parent-portal.php" id="parentPortalBtn" class="outline">
+            <i class="fas fa-user-friends"></i> Parent Portal
+          </a>
+          <p style="font-size:0.9em;color:#888;">You must have an account to access messaging and grade requests.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dashboard -->
+    <section id="dashboard">
+      <div class="dash-header">
+        <h2 id="dashboardTitle">Dashboard</h2>
+        <div id="dashActions"></div>
+      </div>
+      <div id="dashboardLayout" style="display:flex;gap:16px;align-items:flex-start;">
+        <nav id="adminSidebar" style="min-width:220px;"></nav>
+        <div id="dashboardContent" style="flex:1;"></div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Notifications -->
+  <div id="notifArea" style="display:none;"></div>
+
+  <!-- Admin Modal -->
+  <div id="adminModal" class="modal">
+    <div id="adminModalContent" class="modal-content">
+      <button id="closeAdminModal" class="modal-close">&times;</button>
+      <img src="logo.png" alt="Logo" class="modal-logo">
+      <h2>Admin Login</h2>
+      <form id="adminLoginForm" class="stack">
+        <input type="text" id="adminUsername" placeholder="Username" required>
+        <input type="password" id="adminPassword" placeholder="Password" required>
+        <button type="submit">Login</button>
+      </form>
+      <div id="adminLoginError" class="error"></div>
+    </div>
+  </div>
+
+  <!-- Parent Link Modal -->
+  <div id="parentLinkModal" class="modal">
+    <div id="parentLinkModalContent" class="modal-content">
+      <button id="closeParentLinkModal" class="modal-close">&times;</button>
+      
+      <!-- Warning Section -->
+      <div style="background: rgba(255, 193, 7, 0.2); border: 1px solid #ffc107; border-radius: 8px; padding: 1.2rem; margin-bottom: 1.5rem;">
+        <h3 style="color: #ffe082; margin-top: 0;"><i class="fas fa-exclamation-triangle"></i> ⚠️ Important!</h3>
+        <p style="color: #fff; margin: 0.5rem 0;">Before signing up here, you must:</p>
+        <ol style="color: #fff; margin: 0.5rem 0; padding-left: 1.5rem;">
+          <li>Go to the <strong>Parent Portal</strong></li>
+          <li>Create your parent account with your details</li>
+          <li>You will receive a <strong>Signup Code</strong></li>
+          <li>Return here and use that code to sign up</li>
+        </ol>
+        <p style="color: #aaa; font-size: 0.9rem; margin: 0.5rem 0;">If you haven't created a parent account yet, <a href="/parent-portal.php" target="_blank" style="color: #82b2ff; text-decoration: underline;">click here to go to Parent Portal</a></p>
+      </div>
+
+      <h2>Student Signup</h2>
+      <p class="muted">Enter your parent's details and the signup code from the Parent Portal.</p>
+      
+      <div class="stack">
+        <label><strong>Parent's Email *</strong></label>
+        <input type="email" id="parentEmail" class="parentSignupField" placeholder="Enter parent email from Portal..." required>
+        
+        <label><strong>Parent's Full Name *</strong></label>
+        <input type="text" id="parentFullName" class="parentSignupField" placeholder="Enter parent name from Portal..." required>
+        
+        <label><strong>Your Signup Code *</strong></label>
+        <input type="text" id="signupCode" class="parentSignupField" placeholder="Code from Parent Portal (e.g., A1B2C3D4E5F6)" required style="font-family: monospace; letter-spacing: 2px;">
+        <p style="font-size: 0.85rem; color: #999; margin: 0.5rem 0;">You received this code when you created your account in the Parent Portal</p>
+        
+        <div id="childLinkInputs">
+          <label><strong>Child Code from Teacher *</strong></label>
+          <div class="child-link-row"><input type="text" class="childLinkInput" placeholder="Paste teacher-given code here..." /></div>
+        </div>
+      </div>
+      
+      <div id="signupError" style="display: none; background: rgba(255, 69, 69, 0.2); border: 1px solid #ff4545; color: #ff9999; padding: 0.8rem; border-radius: 6px; margin-bottom: 1rem;"></div>
+      
+      <div class="modal-actions">
+        <button id="addChildLinkBtn" class="outline">+ Add Another Child</button>
+        <button id="submitChildLinksBtn">Complete Signup</button>
+      </div>
+    </div>
+
+      <!-- Parent Message Modal -->
+      <div id="parentMessageModal" class="modal">
+        <div id="parentMessageModalContent" class="modal-content">
+          <button id="closeParentMessageModal" class="modal-close">&times;</button>
+          <h2>Message Admin</h2>
+          <p class="muted">Ask admin for your child's grades. Attach child code(s) and a message.</p>
+          <div class="stack">
+            <label for="pmChildSelect">Child Code (linked):</label>
+            <select id="pmChildSelect"></select>
+            <textarea id="pmMessageText" placeholder="Write your message..." rows="5"></textarea>
+            <div class="modal-actions">
+              <button id="pmSendBtn">Send Message</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Student Detail Modal (admin) -->
+      <div id="studentDetailModal" class="modal">
+        <div id="studentDetailModalContent" class="modal-content">
+          <button id="closeStudentDetailModal" class="modal-close">&times;</button>
+          <h2 id="studentDetailTitle">Student Details</h2>
+          <div id="studentSubjectsList"></div>
+          <div class="stack">
+            <input type="text" id="newSubjectTitle" placeholder="Subject title (e.g. Math)" />
+            <input type="text" id="newSubjectGrade" placeholder="Grade (e.g. 88)" />
+            <div class="modal-actions"><button id="addSubjectBtn">Add Subject Grade</button></div>
+          </div>
+        </div>
+      </div>
+  </div>
+
+  <!-- Login Type Modal -->
+  <div id="loginTypeModal" class="modal">
+    <div id="loginTypeModalContent" class="modal-content">
+      <button id="closeLoginTypeModal" class="modal-close">&times;</button>
+      <h2>Choose Login Type</h2>
+      <div class="stack">
+        <button id="loginAsParent">Login as Parent</button>
+        <button id="loginAsAdmin">Login as Admin</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Add Learner Modal -->
+  <!-- Add Learner Modal is injected dynamically for admin users -->
+
+  <!-- Learner Card Template -->
+  <template id="learnerCardTemplate">
+    <div class="card learner-card">
+      <div class="card-head">
+        <div>
+          <div class="learner-name"></div>
+          <div class="learner-meta muted"></div>
+        </div>
+        <div class="card-actions">
+          <button class="toggle-table-btn" title="Show/Hide Tests"><i class="fas fa-chevron-down"></i></button>
+          <button class="delete-learner danger" title="Delete"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>
+      <div class="card-body learner-body" style="display:none;">
+        <div class="add-test-row input-row">
+          <input type="text" class="test-name-input" placeholder="Test name" />
+          <input type="number" min="0" max="100" class="test-score-input" placeholder="Score" />
+          <button class="add-test-btn">Add</button>
+        </div>
+        <div class="tests-table-wrap">
+          <table class="tests-table">
+            <thead><tr><th>Test</th><th>Score</th><th>Actions</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </template>
+
+  <script type="module" src="app.js"></script>
+</body>
+</html>

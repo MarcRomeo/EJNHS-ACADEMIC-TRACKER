@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Admin Panel - Academic Tracker</title>
+  <link rel="icon" type="image/png" href="logo.png"/>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { 
+      font-family: Arial, sans-serif; 
+      background: #f3f4f6; 
+      padding: 20px; 
+    }
+    .header {
+      background: #fff;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .header h1 {
+      color: #111827;
+      font-size: 1.5rem;
+    }
+    .logout-btn {
+      background: #ef4444;
+      color: #fff;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+    .logout-btn:hover {
+      background: #dc2626;
+    }
+    .card { 
+      background: #fff; 
+      padding: 20px; 
+      margin-bottom: 20px; 
+      border-radius: 8px; 
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    .card h3 {
+      color: #111827;
+      margin-bottom: 15px;
+      font-size: 1.2rem;
+    }
+    .card h4 {
+      color: #374151;
+      margin: 15px 0 8px 0;
+      font-size: 1rem;
+    }
+    input, select, button { 
+      width: 100%; 
+      padding: 10px; 
+      margin: 5px 0; 
+      border: 1px solid #d1d5db;
+      border-radius: 6px;
+      font-size: 0.95rem;
+    }
+    input:focus, select:focus {
+      outline: none;
+      border-color: #2563eb;
+    }
+    button { 
+      background: #2563eb; 
+      color: #fff; 
+      border: none; 
+      cursor: pointer; 
+      font-weight: 600;
+      margin-top: 10px;
+    }
+    button:hover {
+      background: #1d4ed8;
+    }
+    .student-list {
+      max-height: 500px;
+      overflow-y: auto;
+    }
+    .student-item {
+      background: #f9fafb;
+      padding: 12px;
+      margin-bottom: 10px;
+      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .student-item:hover {
+      background: #f3f4f6;
+      border-color: #2563eb;
+    }
+    .student-info {
+      flex: 1;
+    }
+    .student-name {
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 4px;
+    }
+    .student-meta {
+      font-size: 0.85rem;
+      color: #6b7280;
+    }
+    .student-actions {
+      display: flex;
+      gap: 8px;
+    }
+    .edit-btn, .delete-btn {
+      width: auto;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+    }
+    .delete-btn {
+      background: #ef4444;
+    }
+    .delete-btn:hover {
+      background: #dc2626;
+    }
+    .grade-label {
+      display: inline-block;
+      background: #dbeafe;
+      color: #1e40af;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+    .code-display {
+      background: #f0fdf4;
+      border: 1px solid #86efac;
+      padding: 12px;
+      border-radius: 6px;
+      margin: 10px 0;
+      text-align: center;
+    }
+    .code-display code {
+      font-family: monospace;
+      font-size: 1.1rem;
+      color: #15803d;
+      letter-spacing: 2px;
+      font-weight: bold;
+    }
+    .login-container {
+      max-width: 400px;
+      margin: 100px auto;
+    }
+    .error-msg {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 10px;
+      border-radius: 6px;
+      margin: 10px 0;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Login Screen -->
+  <div id="loginScreen" class="login-container">
+    <div class="card">
+      <h3>Admin Login</h3>
+      <input type="text" id="loginUsername" placeholder="Username">
+      <input type="password" id="loginPassword" placeholder="Password">
+      <div class="error-msg" id="loginError"></div>
+      <button onclick="adminLogin()">Login</button>
+    </div>
+  </div>
+
+  <!-- Admin Dashboard -->
+  <div id="adminDashboard" style="display: none;">
+    <div class="header">
+      <h1>Admin Panel – Grade 11 & 12</h1>
+      <button class="logout-btn" onclick="logout()">Logout</button>
+    </div>
+
+    <!-- Add/Publish Student Form -->
+    <div class="card">
+      <h3>Add / Publish Student Grades</h3>
+      
+      <input id="name" placeholder="Student Full Name">
+      
+      <h4>Grade Level</h4>
+      <select id="gradeLevel">
+        <option value="Grade 11">Grade 11</option>
+        <option value="Grade 12">Grade 12</option>
+      </select>
+      
+      <h4>Strand</h4>
+      <select id="strand">
+        <option value="HE">HE</option>
+        <option value="ABM">ABM</option>
+        <option value="HUMSS">HUMSS</option>
+        <option value="CCS">CCS</option>
+        <option value="STEM">STEM</option>
+      </select>
+      
+      <h4>Written Works (30%)</h4>
+      <input id="written" type="number" min="0" max="100" placeholder="Enter score (0-100)">
+      
+      <h4>Performance Tasks (50%)</h4>
+      <input id="performance" type="number" min="0" max="100" placeholder="Enter score (0-100)">
+      
+      <h4>Quarterly Assessment (20%)</h4>
+      <input id="quarterly" type="number" min="0" max="100" placeholder="Enter score (0-100)">
+      
+      <div id="childCodeDisplay" class="code-display" style="display: none;">
+        <p style="margin-bottom: 8px; color: #15803d; font-weight: 600;">Child Code Generated:</p>
+        <code id="generatedCode"></code>
+        <p style="margin-top: 8px; font-size: 0.85rem; color: #6b7280;">Share this code with the parent</p>
+      </div>
+      
+      <button onclick="publishGrade()">Publish Grade</button>
+    </div>
+
+    <!-- Published Students List -->
+    <div class="card">
+      <h3>Published Students</h3>
+      <div id="studentsList" class="student-list">
+        <p style="text-align: center; color: #9ca3af; padding: 20px;">Loading students...</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = './api';
+    let currentAdmin = null;
+
+    // Check if already logged in
+    window.onload = function() {
+      const savedAdmin = localStorage.getItem('adminLoggedIn');
+      if (savedAdmin) {
+        currentAdmin = JSON.parse(savedAdmin);
+        showDashboard();
+      }
+    };
+
+    // Admin Login
+    async function adminLogin() {
+      const username = document.getElementById('loginUsername').value.trim();
+      const password = document.getElementById('loginPassword').value;
+      const errorDiv = document.getElementById('loginError');
+
+      if (!username || !password) {
+        errorDiv.textContent = 'Please enter username and password';
+        errorDiv.style.display = 'block';
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/admin.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'login',
+            username: username,
+            password: password
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          currentAdmin = result.admin;
+          localStorage.setItem('adminLoggedIn', JSON.stringify(result.admin));
+          showDashboard();
+        } else {
+          errorDiv.textContent = result.error;
+          errorDiv.style.display = 'block';
+        }
+      } catch (error) {
+        console.error('Login error:', error);
+        errorDiv.textContent = 'An error occurred. Please try again.';
+        errorDiv.style.display = 'block';
+      }
+    }
+
+    function showDashboard() {
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('adminDashboard').style.display = 'block';
+      loadStudents();
+    }
+
+    function logout() {
+      localStorage.removeItem('adminLoggedIn');
+      currentAdmin = null;
+      document.getElementById('loginScreen').style.display = 'block';
+      document.getElementById('adminDashboard').style.display = 'none';
+      document.getElementById('loginUsername').value = '';
+      document.getElementById('loginPassword').value = '';
+    }
+
+    // Publish Grade
+    async function publishGrade() {
+      const name = document.getElementById('name').value.trim();
+      const gradeLevel = document.getElementById('gradeLevel').value;
+      const strand = document.getElementById('strand').value;
+      const written = parseFloat(document.getElementById('written').value);
+      const performance = parseFloat(document.getElementById('performance').value);
+      const quarterly = parseFloat(document.getElementById('quarterly').value);
+
+      // Validation
+      if (!name) {
+        alert('Please enter student name');
+        return;
+      }
+
+      if (isNaN(written) || isNaN(performance) || isNaN(quarterly)) {
+        alert('Please enter all grade components');
+        return;
+      }
+
+      if (written < 0 || written > 100 || performance < 0 || performance > 100 || quarterly < 0 || quarterly > 100) {
+        alert('All grades must be between 0 and 100');
+        return;
+      }
+
+      // Calculate final grade
+      const finalGrade = (written * 0.30) + (performance * 0.50) + (quarterly * 0.20);
+      const roundedGrade = Math.round(finalGrade * 10) / 10;
+
+      try {
+        // Add student
+        const response = await fetch(`${API_BASE}/admin.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'addStudent',
+            name: name,
+            grade: gradeLevel,
+            section: strand,
+            adminUsername: currentAdmin.username
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          const studentId = result.student.id;
+          const childCode = result.student.childCode;
+
+          // Save grades
+          const subjects = [
+            { title: 'Written Works (30%)', grade: written.toString() },
+            { title: 'Performance Tasks (50%)', grade: performance.toString() },
+            { title: 'Quarterly Assessment (20%)', grade: quarterly.toString() },
+            { title: 'Final Grade', grade: roundedGrade.toString() }
+          ];
+
+          const gradeResponse = await fetch(`${API_BASE}/admin.php`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              action: 'updateGrades',
+              studentId: studentId,
+              subjects: subjects
+            })
+          });
+
+          const gradeResult = await gradeResponse.json();
+
+          if (gradeResult.success) {
+            // Show child code
+            document.getElementById('generatedCode').textContent = childCode;
+            document.getElementById('childCodeDisplay').style.display = 'block';
+
+            // Clear form
+            document.getElementById('name').value = '';
+            document.getElementById('written').value = '';
+            document.getElementById('performance').value = '';
+            document.getElementById('quarterly').value = '';
+
+            // Reload list
+            loadStudents();
+
+            // Hide code after 10 seconds
+            setTimeout(() => {
+              document.getElementById('childCodeDisplay').style.display = 'none';
+            }, 10000);
+          }
+        } else {
+          alert('Error: ' + result.error);
+        }
+      } catch (error) {
+        console.error('Error publishing grade:', error);
+        alert('An error occurred while publishing the grade');
+      }
+    }
+
+    // Load Students
+    async function loadStudents() {
+      try {
+        const response = await fetch(`${API_BASE}/admin.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'getStudents' })
+        });
+
+        const result = await response.json();
+        const listEl = document.getElementById('studentsList');
+
+        if (result.success && result.students.length > 0) {
+          listEl.innerHTML = result.students.map(student => {
+            const finalGradeSubject = student.subjects?.find(s => s.title === 'Final Grade');
+            const finalGrade = finalGradeSubject ? finalGradeSubject.grade : 'N/A';
+            
+            return `
+              <div class="student-item">
+                <div class="student-info">
+                  <div class="student-name">${student.name}</div>
+                  <div class="student-meta">
+                    ${student.grade} - ${student.section}
+                    <span class="grade-label">Grade: ${finalGrade}</span>
+                  </div>
+                  <div class="student-meta" style="margin-top: 4px;">
+                    Child Code: <code style="background: #f3f4f6; padding: 2px 6px; border-radius: 3px;">${student.childCode}</code>
+                  </div>
+                </div>
+                <div class="student-actions">
+                  <button class="edit-btn" onclick="editStudent('${student.id}')">Edit</button>
+                  <button class="delete-btn" onclick="deleteStudent('${student.id}')">Delete</button>
+                </div>
+              </div>
+            `;
+          }).join('');
+        } else {
+          listEl.innerHTML = '<p style="text-align: center; color: #9ca3af; padding: 20px;">No students published yet</p>';
+        }
+      } catch (error) {
+        console.error('Error loading students:', error);
+        document.getElementById('studentsList').innerHTML = '<p style="text-align: center; color: #ef4444; padding: 20px;">Error loading students</p>';
+      }
+    }
+
+    // Edit Student
+    async function editStudent(studentId) {
+      try {
+        const response = await fetch(`${API_BASE}/admin.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'getStudents' })
+        });
+
+        const result = await response.json();
+        const student = result.students.find(s => s.id === studentId);
+
+        if (!student) {
+          alert('Student not found');
+          return;
+        }
+
+        // Extract grades
+        const writtenWorks = student.subjects?.find(s => s.title === 'Written Works (30%)')?.grade || '';
+        const performanceTasks = student.subjects?.find(s => s.title === 'Performance Tasks (50%)')?.grade || '';
+        const quarterlyAssessment = student.subjects?.find(s => s.title === 'Quarterly Assessment (20%)')?.grade || '';
+
+        // Fill form
+        document.getElementById('name').value = student.name;
+        document.getElementById('gradeLevel').value = student.grade;
+        document.getElementById('strand').value = student.section;
+        document.getElementById('written').value = writtenWorks;
+        document.getElementById('performance').value = performanceTasks;
+        document.getElementById('quarterly').value = quarterlyAssessment;
+
+        // Change button to update mode
+        const publishBtn = document.querySelector('button[onclick="publishGrade()"]');
+        publishBtn.textContent = 'Update Grade';
+        publishBtn.setAttribute('onclick', `updateStudent('${studentId}')`);
+
+        // Scroll to form
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      } catch (error) {
+        console.error('Error loading student:', error);
+        alert('Error loading student data');
+      }
+    }
+
+    // Update Student
+    async function updateStudent(studentId) {
+      const name = document.getElementById('name').value.trim();
+      const written = parseFloat(document.getElementById('written').value);
+      const performance = parseFloat(document.getElementById('performance').value);
+      const quarterly = parseFloat(document.getElementById('quarterly').value);
+
+      if (!name || isNaN(written) || isNaN(performance) || isNaN(quarterly)) {
+        alert('Please fill in all fields');
+        return;
+      }
+
+      // Calculate final grade
+      const finalGrade = (written * 0.30) + (performance * 0.50) + (quarterly * 0.20);
+      const roundedGrade = Math.round(finalGrade * 10) / 10;
+
+      const subjects = [
+        { title: 'Written Works (30%)', grade: written.toString() },
+        { title: 'Performance Tasks (50%)', grade: performance.toString() },
+        { title: 'Quarterly Assessment (20%)', grade: quarterly.toString() },
+        { title: 'Final Grade', grade: roundedGrade.toString() }
+      ];
+
+      try {
+        const response = await fetch(`${API_BASE}/admin.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'updateGrades',
+            studentId: studentId,
+            subjects: subjects
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          alert('Grade updated successfully!');
+          
+          // Reset form
+          document.getElementById('name').value = '';
+          document.getElementById('written').value = '';
+          document.getElementById('performance').value = '';
+          document.getElementById('quarterly').value = '';
+
+          // Reset button
+          const btn = document.querySelector('button[onclick^="updateStudent"]');
+          btn.textContent = 'Publish Grade';
+          btn.setAttribute('onclick', 'publishGrade()');
+
+          loadStudents();
+        } else {
+          alert('Error: ' + result.error);
+        }
+      } catch (error) {
+        console.error('Error updating grade:', error);
+        alert('An error occurred');
+      }
+    }
+
+    // Delete Student
+    async function deleteStudent(studentId) {
+      if (!confirm('Are you sure you want to delete this student?')) {
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_BASE}/admin.php`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'deleteStudent',
+            studentId: studentId
+          })
+        });
+
+        const result = await response.json();
+
+        if (result.success) {
+          loadStudents();
+        } else {
+          alert('Error: ' + result.error);
+        }
+      } catch (error) {
+        console.error('Error deleting student:', error);
+        alert('An error occurred');
+      }
+    }
+  </script>
+</body>
+</html>

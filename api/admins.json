@@ -1,0 +1,16 @@
+[
+    {
+        "username": "admin",
+        "password": "$2y$12$HYNxqx2oJF3EvHQ9FYRFDu1KsLR.9AWoW9q9j71ZMO5F8SCia3leG",
+        "role": "admin",
+        "name": "System Administrator",
+        "createdAt": "2026-02-11 11:38:37"
+    },
+    {
+        "username": "teacher",
+        "password": "$2y$12$wqchbKl4z4dOC1Gum.l3Musm34198npALdTOB.lebZcPuppzS12E.",
+        "role": "teacher",
+        "name": "Teacher Demo",
+        "createdAt": "2026-02-11 11:38:38"
+    }
+]

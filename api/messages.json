@@ -1,0 +1,26 @@
+[
+    {
+        "id": "msg_697a1880e19f39.07023547",
+        "sender": "ramirezaljan@gmail.com",
+        "senderName": "Aljan Ramirez",
+        "childName": "Marc Romeo Vilchez",
+        "subject": "Ms Kim Russel Agpoa",
+        "content": "Hi miss",
+        "type": "parent-to-admin",
+        "status": "unread",
+        "timestamp": "2026-01-28 15:09:04",
+        "timestampUnix": 1769609344
+    },
+    {
+        "id": "msg_697ac3e80d69c2.14674272",
+        "sender": "trishamisha56@gmail.com",
+        "senderName": "Trisha Delaruz",
+        "childName": "Allison Buen Batumbakal",
+        "subject": "Science",
+        "content": "WHAT HAPPENED TO MY CHILD GRADES",
+        "type": "parent-to-admin",
+        "status": "unread",
+        "timestamp": "2026-01-29 03:20:24",
+        "timestampUnix": 1769653224
+    }
+]

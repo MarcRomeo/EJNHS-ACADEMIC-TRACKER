@@ -1,0 +1,516 @@
+/* No changes needed for your requirements, but ensure teacher signup box is not present in HTML */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Poppins', sans-serif;
+  color: #fff;
+  background: url('bg.jpg') no-repeat center center fixed;
+  background-size: cover;
+  min-height: 100vh;
+}
+header {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 1.2rem 2rem;
+  background: rgba(0,0,0,0.60);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 2px 16px rgba(0,24,80,0.14);
+  border-bottom: 1.5px solid #82b2ff5d;
+  transition: box-shadow .35s;
+  z-index: 10;
+  position: relative;
+}
+header img {
+  height: 60px;
+  border-radius: 14px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+}
+header h1 {
+  font-size: 2rem;
+  font-weight: 600;
+  text-shadow: 2px 2px 7px rgba(0,0,0,0.24);
+  letter-spacing: 1px;
+  background: linear-gradient(90deg,#82b2ff 20%,#fff 50%,#4666E5 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  display: flex;
+  align-items: center;
+}
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 84vh;
+  text-align: center;
+  padding: 2.5rem 1rem;
+  backdrop-filter: blur(7px);
+  background: rgba(0,0,0,0.34);
+  border-radius: 28px;
+  margin: 2.2rem auto;
+  max-width: 1000px;
+  box-shadow: 0 10px 35px 0 rgba(0,24,80,0.18);
+}
+.container h2 {
+  font-size: 2.3rem;
+  margin-bottom: 0.8rem;
+  text-shadow: 1px 1px 4px rgba(0,0,0,0.23);
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+.container p {
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  color: #eaf5ff;
+  letter-spacing: 0.2px;
+  font-weight: 400;
+}
+.hud-boxes {
+  display: flex;
+  gap: 2.2rem;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+.hud-box {
+  background: rgba(255,255,255,0.16);
+  padding: 2rem 1.5rem;
+  border-radius: 18px;
+  backdrop-filter: blur(17px);
+  box-shadow: 0 8px 25px rgba(0,24,80,0.19);
+  width: 260px;
+  transition: transform 0.29s, box-shadow 0.29s;
+  cursor: pointer;
+  margin-bottom: 0.6rem;
+  border: 2px solid #82b2ff2d;
+  position: relative;
+  overflow: hidden;
+}
+.hud-box h3 {
+  margin-bottom: 1.1rem;
+  font-size: 1.27rem;
+  font-weight: 600;
+  text-shadow: 1px 1px 4px rgba(0,0,0,0.18);
+  color: #dbefff;
+}
+button {
+  background: linear-gradient(135deg, #4CAF50 40%, #2E7D32 100%);
+  border: none;
+  padding: 0.85rem 1.2rem;
+  border-radius: 50px;
+  color: #fff;
+  font-size: 1.06rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.23s;
+  width: 100%;
+  box-shadow: 0 2px 7px rgba(0,0,0,0.13);
+  outline: none;
+  position: relative;
+  z-index: 2;
+}
+button:active {
+  transform: scale(0.98);
+}
+button:hover {
+  background: linear-gradient(135deg, #66BB6A, #388E3C);
+  transform: scale(1.045);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.17);
+}
+#dashboard {
+  display: none;
+  padding: 2.5rem 1rem;
+  max-width: 900px;
+  margin: 2.2rem auto;
+  backdrop-filter: blur(12px);
+  background: rgba(0,0,0,0.47);
+  border-radius: 26px;
+  box-shadow: 0 9px 38px 0 rgba(0,24,80,0.21);
+}
+#dashboardTitle {
+  font-size: 2.1rem;
+  margin-bottom: 1.2rem;
+  text-align: center;
+  font-weight: 600;
+  letter-spacing: 0.7px;
+  color: #dbefff;
+  text-shadow: 0 1px 4px #4666E5;
+}
+#dashboardContent {
+  display: flex;
+  flex-direction: column;
+  gap: 1.1rem;
+  min-height: 190px;
+}
+.card {
+  background: rgba(0,0,0,0.62);
+  padding: 1.3rem 1rem;
+  border-radius: 16px;
+  box-shadow: 0 6px 22px rgba(0,24,80,0.21);
+  transition: transform 0.19s;
+  margin-bottom: 0.7rem;
+  position: relative;
+}
+.card:hover {
+  transform: translateY(-5px) scale(1.025);
+  box-shadow: 0 12px 28px rgba(0,24,80,0.26);
+}
+.section-card {margin-bottom: 1.6rem;}
+.section-title {
+  font-size: 1.15rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #b7e5ff;
+}
+.student-list {margin-bottom:1rem;}
+.student-item {
+  padding: 8px 13px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 9px;
+  margin-bottom: 6px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 2px 8px rgba(0,24,80,0.10);
+  font-weight: 500;
+  font-size: 1.01rem;
+  transition: background .22s;
+}
+.student-item:hover {
+  background: rgba(130,178,255,0.11);
+}
+.score-box {
+  background: #222;
+  padding: 4px 11px;
+  border-radius: 8px;
+  color: #a5d6a7;
+  font-weight: 500;
+  font-size: 0.93rem;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.08);
+}
+.add-btn {
+  background: linear-gradient(135deg,#607D8B,#37474F);
+  border:none;
+  border-radius:50%;
+  color:white;
+  font-size:1.22rem;
+  width:36px;
+  height:36px;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  margin: 4px 0;
+  box-shadow: 0 3px 10px rgba(0,24,80,0.10);
+  transition: background .23s, transform .21s;
+  outline:none;
+  border:2px solid #607D8B44;
+}
+.add-btn:active {transform: scale(.97);}
+.add-btn:hover {
+  background:linear-gradient(135deg,#82b2ff,#263238);
+  border-color:#82b2ffbb;
+}
+.input-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+  align-items: center;
+}
+.input-row input, .input-row select {
+  padding: 7px 13px;
+  border-radius: 7px;
+  border: none;
+  outline: none;
+  box-shadow: 0 1px 6px rgba(0,24,80,0.08);
+  background: #eaf5ff;
+  color: #263238;
+  font-size: 1rem;
+  font-family: inherit;
+}
+.input-row input[type=number] {width:80px;}
+.input-row input[type=text] {flex:2;}
+.input-row select {width:115px;}
+.list-label {
+  font-weight:600;
+  margin-bottom:2px;
+  color:#a5d6a7;
+  letter-spacing:0.2px;
+}
+.notif {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg,#4666E5 70%,#82b2ff 100%);
+  color: #fff;
+  padding: 12px 24px;
+  border-radius: 20px;
+  box-shadow: 0 3px 22px rgba(0,24,80,0.20);
+  font-weight: 600;
+  font-size: 1.01rem;
+  letter-spacing: 0.3px;
+  z-index: 2002;
+}
+
+/* Generic modal base styles
+   Many modal elements in the HTML use class="modal" and
+   class="modal-content" — ensure they are fixed overlays and
+   centered so they don't remain in the document flow (visible
+   while scrolling). Specific modal IDs (eg #adminModal) may
+   override these but having a base helps elements like
+   #addLearnerModal behave correctly. */
+.modal {
+  display: none;
+  position: fixed;
+  z-index: 3000;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.65);
+  align-items: center;
+  justify-content: center;
+}
+.modal.active { display: flex; }
+.modal-content {
+  background: rgba(255,255,255,0.22);
+  border-radius: 18px;
+  padding: 1.6rem 1.4rem;
+  min-width: 320px;
+  max-width: 92vw;
+  box-shadow: 0 20px 44px rgba(0,0,0,0.28);
+  backdrop-filter: blur(14px);
+  text-align: center;
+  color: #222;
+  position: relative;
+  animation: modalPop .45s cubic-bezier(.23,1.01,.32,1) 1;
+}
+.modal-close {
+  position: absolute;
+  right: 12px;
+  top: 10px;
+  font-size: 22px;
+  color: #4666E5;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+}
+#adminModal {
+  display: none;
+  position: fixed;
+  z-index: 3000;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.7);
+  align-items: center;
+  justify-content: center;
+}
+#adminModal.active { display: flex; }
+#adminModalContent {
+  background: rgba(255,255,255,0.22);
+  border-radius: 22px;
+  padding: 2.7rem 2.2rem;
+  min-width: 340px;
+  box-shadow: 0 24px 54px rgba(70,102,229,0.22);
+  backdrop-filter: blur(18px);
+  text-align: center;
+  color: #222;
+  position: relative;
+  animation: modalPop .7s cubic-bezier(.23,1.01,.32,1) 1;
+}
+#adminModalContent .admin-modal-anim {
+  animation: fadeInUp .7s cubic-bezier(.23,1.01,.32,1) 1;
+}
+@keyframes modalPop {
+  0% { transform: scale(0.7) translateY(60px); opacity: 0; }
+  60% { transform: scale(1.05) translateY(-8px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes fadeInUp {
+  0% { opacity: 0; transform: translateY(40px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+#parentLinkModal {
+  display: none;
+  position: fixed;
+  z-index: 3000;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.7);
+  align-items: center;
+  justify-content: center;
+}
+#parentLinkModal.active { display: flex; }
+#parentLinkModalContent {
+  background: rgba(255,255,255,0.20);
+  border-radius: 18px;
+  padding: 2.2rem 2rem;
+  min-width: 320px;
+  box-shadow: 0 20px 44px rgba(70,102,229,0.18);
+  backdrop-filter: blur(14px);
+  text-align: center;
+  color: #222;
+  position: relative;
+  animation: modalPop .7s cubic-bezier(.23,1.01,.32,1) 1;
+}
+#parentLinkModalContent h2 { font-size: 1.2rem; color: #4666E5; font-weight: 700; margin-bottom: 1.1rem; }
+#parentLinkModalContent label { color: #263238; font-weight: 500; margin-top: 0.7rem; font-size: .99rem; display: block; margin-bottom: 2px; }
+#parentLinkModalContent input[type="text"] {
+  padding: 8px 16px;
+  margin-bottom: 1rem;
+  border-radius: 7px;
+  border: 1px solid #82b2ff44;
+  font-size: 1rem;
+  width: 90%;
+}
+#parentLinkModalContent button {
+  background: linear-gradient(135deg, #4666E5 40%, #2E7D32 100%);
+  color: #fff;
+  font-size: 1.06rem;
+  font-weight: 500;
+  border-radius: 50px;
+  border: none;
+  padding: 0.7rem 1.1rem;
+  margin-top: 0.7rem;
+  width: 80%;
+  box-shadow: 0 2px 7px rgba(0,0,0,0.13);
+  cursor: pointer;
+  transition: background .22s;
+}
+#parentLinkModalContent button:hover {
+  background: linear-gradient(135deg, #82b2ff, #388E3C);
+}
+#closeParentLinkModal {
+  position: absolute;
+  right: 15px;
+  top: 10px;
+  font-size: 22px;
+  color: #4666E5;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 1;
+}
+.child-link-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+#adminModalContent h2 { font-size: 1.4rem; color: #4666E5; font-weight: 700; margin-bottom: 1.1rem; }
+#adminModalContent label { color: #263238; font-weight: 500; margin-top: 0.7rem; font-size: .99rem; display: block; margin-bottom: 2px; }
+#adminModalContent input[type="text"], #adminModalContent input[type="password"] {
+  padding: 8px 16px;
+  margin-bottom: 1rem;
+  border-radius: 7px;
+  border: 1px solid #82b2ff44;
+  font-size: 1rem;
+  width: 90%;
+}
+#adminModalContent button {
+  background: linear-gradient(135deg, #4666E5 40%, #2E7D32 100%);
+  color: #fff;
+  font-size: 1.06rem;
+  font-weight: 500;
+  border-radius: 50px;
+  border: none;
+  padding: 0.7rem 1.1rem;
+  margin-top: 0.7rem;
+  width: 80%;
+  box-shadow: 0 2px 7px rgba(0,0,0,0.13);
+  cursor: pointer;
+  transition: background .22s;
+}
+#adminModalContent button:hover {
+  background: linear-gradient(135deg, #82b2ff, #388E3C);
+}
+#closeAdminModal {
+  position: absolute;
+  right: 15px;
+  top: 10px;
+  font-size: 22px;
+  color: #4666E5;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 1;
+}
+/* Responsive Design */
+@media (max-width: 900px) {
+  .container, #dashboard {max-width: 98vw;}
+  header {padding: 1rem .3rem;}
+}
+@media (max-width: 600px) {
+  .container, #dashboard {padding: .7rem .2rem;}
+  header h1 {font-size: 1.2rem;}
+  header img {height: 44px;}
+  .hud-boxes {flex-direction: column; gap:1.1rem;}
+  .hud-box {width:90vw; padding:1.1rem 1rem;}
+  #adminModalContent {min-width: 220px; padding:1.3rem 1rem;}
+}
+@media (max-width: 420px) {
+  #dashboard, .container {border-radius: 12px; padding:.3rem .1rem;}
+  header {padding: .5rem .1rem;}
+  .hud-box {padding:.7rem .6rem;}
+}
+
+/* New: Login Modal Styles */
+#loginTypeModal {
+  display: none;
+  position: fixed;
+  z-index: 3000;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0,0,0,0.7);
+  align-items: center;
+  justify-content: center;
+}
+#loginTypeModal.active { display: flex; }
+#loginTypeModalContent {
+  background: rgba(255,255,255,0.20);
+  border-radius: 16px;
+  padding: 2rem 2rem;
+  min-width: 260px;
+  box-shadow: 0 15px 35px rgba(0,24,80,0.24);
+  backdrop-filter: blur(10px);
+  text-align: center;
+  color: #222;
+  position: relative;
+}
+#loginTypeModalContent h2 { font-size: 1.15rem; color: #4666E5; margin-bottom: 1.1rem; }
+#closeLoginTypeModal {
+  position: absolute;
+  right: 15px;
+  top: 10px;
+  font-size: 22px;
+  color: #4666E5;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  z-index: 1;
+}
+
+/* Student dashboard and modal improvements */
+.student-row { padding: 10px; margin-bottom: 8px; border-radius: 8px; background: rgba(255,255,255,0.04); display:flex; justify-content:space-between; align-items:center; }
+.student-row b { font-size: 1.02rem; }
+#studentDetailModalContent { min-width: 360px; max-width: 640px; }
+#studentSubjectsList .card { margin-bottom: 8px; padding: 8px 10px; border-radius: 8px; background: rgba(255,255,255,0.06); }
+textarea { width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #82b2ff33; min-height: 90px; resize: vertical; font-family: inherit; }
+input[type="text"], input[type="number"], select { padding: 8px 12px; border-radius: 8px; border: 1px solid #82b2ff33; background: #fff; color: #222; }
+.modal-actions { display:flex; gap:8px; justify-content:center; margin-top:8px; }
+.card .add-btn { margin-left: 6px; width: auto; height: 34px; border-radius: 8px; padding: 6px 8px; }
+
