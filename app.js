@@ -635,7 +635,7 @@ function showSimpleChildCodeModal(student) {
                     ${student.childCode}
                 </div>
                 <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #6b7280;">
-                    Share this code with the parent. After that, add subjects and their Written Works, Performance Tasks, and Quarterly Assessment for this student.
+                    Share this code with the parent. After that, add subjects and their Activities + Quizzes (Written Works), Performance Tasks, and Quarterly Assessment for this student.
                 </p>
             </div>
             <button onclick="openSubjectsModal('${student.id}'); this.closest('.modal').remove()" 
@@ -683,9 +683,12 @@ async function openSubjectsModal(studentId) {
                     <i class="fas fa-book"></i> Subjects - ${student.name}
                 </h2>
 
-                <p style="color:#4b5563; margin-bottom: 1rem; font-size:0.9rem;">
-                    Add each subject and its Written Works, Performance Tasks, and Quarterly Assessment. The final grade is calculated automatically.
-                </p>
+                <div style="background:#f9fafb; border:1px solid #e5e7eb; padding:12px; border-radius:12px; margin-bottom: 1rem;">
+                    <p style="color:#111827; margin:0; font-size:0.95rem; line-height:1.45;">
+                        Add each subject and its <b>Activities + Quizzes</b> (this equals <b>Written Works</b>), <b>Performance Tasks</b>, and <b>Quarterly Assessment</b>.
+                        The final grade is calculated automatically.
+                    </p>
+                </div>
 
                 <div style="margin-bottom:1.5rem;">
                     <h3 style="font-size:1rem; color:#374151; margin-bottom:0.5rem;">Current Subjects</h3>
@@ -697,7 +700,7 @@ async function openSubjectsModal(studentId) {
                                 <tr style="background:#2563eb; color:#ffffff;">
                                     <th style="padding:8px; text-align:left;">Subject</th>
                                     <th style="padding:8px; text-align:center;">Quarter</th>
-                                    <th style="padding:8px; text-align:center;">Written (30%)</th>
+                                    <th style="padding:8px; text-align:center;">Written (A+Q) (30%)</th>
                                     <th style="padding:8px; text-align:center;">Performance (50%)</th>
                                     <th style="padding:8px; text-align:center;">Quarterly (20%)</th>
                                     <th style="padding:8px; text-align:center;">Final</th>
@@ -706,7 +709,7 @@ async function openSubjectsModal(studentId) {
                             </thead>
                             <tbody>
                                 ${subjects.map((sub, idx) => {
-                                    const written = sub.written ?? '';
+                                    const written = formatWrittenWorksScore(sub);
                                     const performance = sub.performance ?? '';
                                     const quarterly = sub.quarterly ?? '';
                                     const final = sub.final ?? sub.grade ?? '';
@@ -748,9 +751,31 @@ async function openSubjectsModal(studentId) {
                                 <option value="4th Quarter">4th Quarter</option>
                             </select>
                         </div>
-                        <div class="form-group">
-                            <label>Written Works (30%) *</label>
-                            <input type="number" id="newWritten" min="0" max="100" placeholder="0-100">
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label>Written Works (30%) = Activities + Quizzes *</label>
+
+                            <div class="ww-grid" id="newWwGrid">
+                                <div class="ww-panel">
+                                    <div class="ww-panel-head">
+                                        <div class="ww-panel-title"><i class="fas fa-clipboard-check"></i> Activities</div>
+                                        <button type="button" class="small-btn" id="addNewActivityBtn"><i class="fas fa-plus"></i> Add</button>
+                                    </div>
+                                    <div class="ww-rows" id="newActivityRows"></div>
+                                    <div class="ww-summary">Average: <b id="newActivityAvg">—</b></div>
+                                </div>
+
+                                <div class="ww-panel">
+                                    <div class="ww-panel-head">
+                                        <div class="ww-panel-title"><i class="fas fa-pen"></i> Quizzes</div>
+                                        <button type="button" class="small-btn" id="addNewQuizBtn"><i class="fas fa-plus"></i> Add</button>
+                                    </div>
+                                    <div class="ww-rows" id="newQuizRows"></div>
+                                    <div class="ww-summary">Average: <b id="newQuizAvg">—</b></div>
+                                </div>
+                            </div>
+
+                            <div class="ww-summary" style="margin-top:10px;">Combined (Activities + Quizzes): <b id="newWrittenCombined">—</b></div>
+                            <input type="number" id="newWritten" min="0" max="100" placeholder="Auto-calculated" readonly style="margin-top:10px;">
                         </div>
                         <div class="form-group">
                             <label>Performance Tasks (50%) *</label>
@@ -769,10 +794,170 @@ async function openSubjectsModal(studentId) {
         `;
         document.body.appendChild(modal);
 
+        // initialize Activities/Quizzes builder for new subjects
+        initWrittenWorksBuilder({
+            activityRowsEl: modal.querySelector('#newActivityRows'),
+            quizRowsEl: modal.querySelector('#newQuizRows'),
+            addActivityBtn: modal.querySelector('#addNewActivityBtn'),
+            addQuizBtn: modal.querySelector('#addNewQuizBtn'),
+            activityAvgEl: modal.querySelector('#newActivityAvg'),
+            quizAvgEl: modal.querySelector('#newQuizAvg'),
+            combinedEl: modal.querySelector('#newWrittenCombined'),
+            writtenInputEl: modal.querySelector('#newWritten'),
+            initialActivities: [],
+            initialQuizzes: []
+        });
+
     } catch (error) {
         console.error('Error loading student subjects:', error);
         alert('Error loading subjects');
     }
+}
+
+function round1(value) {
+    return Math.round(value * 10) / 10;
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+function clampScore(score) {
+    if (!Number.isFinite(score)) return null;
+    return Math.min(100, Math.max(0, score));
+}
+
+function computeAverageScore(entries) {
+    const scores = (entries || [])
+        .map(e => clampScore(parseFloat(e?.score)))
+        .filter(v => Number.isFinite(v));
+    if (!scores.length) return null;
+    const avg = scores.reduce((sum, v) => sum + v, 0) / scores.length;
+    return round1(avg);
+}
+
+function computeWrittenWorksScore(subjectOrParts) {
+    const activities = Array.isArray(subjectOrParts?.writtenActivities) ? subjectOrParts.writtenActivities : (subjectOrParts?.activities || []);
+    const quizzes = Array.isArray(subjectOrParts?.writtenQuizzes) ? subjectOrParts.writtenQuizzes : (subjectOrParts?.quizzes || []);
+    const combined = [...activities, ...quizzes];
+    const avg = computeAverageScore(combined);
+    if (avg === null) {
+        const legacy = clampScore(parseFloat(subjectOrParts?.written));
+        return legacy === null ? null : round1(legacy);
+    }
+    return avg;
+}
+
+function formatWrittenWorksScore(subject) {
+    const score = computeWrittenWorksScore(subject);
+    return score === null ? '' : String(score);
+}
+
+function createWwRow({ date = '', score = '' } = {}) {
+    const row = document.createElement('div');
+    row.className = 'ww-row';
+    row.innerHTML = `
+        <input type="date" class="ww-date" value="${escapeHtml(date)}" />
+        <input type="number" class="ww-score" min="0" max="100" placeholder="Score" value="${escapeHtml(String(score))}" />
+        <button type="button" class="icon-btn ww-remove" title="Remove">&times;</button>
+    `;
+    return row;
+}
+
+function readWwEntries(rowsEl) {
+    if (!rowsEl) return [];
+    return Array.from(rowsEl.querySelectorAll('.ww-row')).map(row => {
+        const date = row.querySelector('.ww-date')?.value || '';
+        const score = row.querySelector('.ww-score')?.value || '';
+        return { date, score };
+    }).filter(e => e.date || e.score !== '');
+}
+
+function validateWwEntries(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    if (!list.length) return { ok: false, error: 'Please add at least one entry.' };
+
+    for (const entry of list) {
+        const date = (entry?.date || '').trim();
+        const scoreStr = String(entry?.score ?? '').trim();
+        const score = parseFloat(scoreStr);
+
+        if (!date) return { ok: false, error: 'Please provide a date for each entry.' };
+        if (scoreStr === '' || !Number.isFinite(score)) return { ok: false, error: 'Please provide a numeric score for each entry.' };
+        if (score < 0 || score > 100) return { ok: false, error: 'All entry scores must be between 0 and 100.' };
+    }
+
+    return { ok: true };
+}
+
+function updateWrittenWorksSummary({ activityRowsEl, quizRowsEl, activityAvgEl, quizAvgEl, combinedEl, writtenInputEl }) {
+    const activities = readWwEntries(activityRowsEl);
+    const quizzes = readWwEntries(quizRowsEl);
+
+    const activityAvg = computeAverageScore(activities);
+    const quizAvg = computeAverageScore(quizzes);
+    const combinedAvg = computeWrittenWorksScore({ activities, quizzes });
+
+    if (activityAvgEl) activityAvgEl.textContent = activityAvg === null ? '—' : String(activityAvg);
+    if (quizAvgEl) quizAvgEl.textContent = quizAvg === null ? '—' : String(quizAvg);
+    if (combinedEl) combinedEl.textContent = combinedAvg === null ? '—' : String(combinedAvg);
+    if (writtenInputEl) writtenInputEl.value = combinedAvg === null ? '' : String(combinedAvg);
+}
+
+function initWrittenWorksBuilder({
+    activityRowsEl,
+    quizRowsEl,
+    addActivityBtn,
+    addQuizBtn,
+    activityAvgEl,
+    quizAvgEl,
+    combinedEl,
+    writtenInputEl,
+    initialActivities = [],
+    initialQuizzes = []
+}) {
+    if (!activityRowsEl || !quizRowsEl) return;
+
+    const addRow = (rowsEl, data) => {
+        const row = createWwRow(data);
+        rowsEl.appendChild(row);
+    };
+
+    // Seed at least one row for better UX
+    if (initialActivities.length) initialActivities.forEach(a => addRow(activityRowsEl, a));
+    else addRow(activityRowsEl, {});
+
+    if (initialQuizzes.length) initialQuizzes.forEach(q => addRow(quizRowsEl, q));
+    else addRow(quizRowsEl, {});
+
+    const handleChange = () => updateWrittenWorksSummary({ activityRowsEl, quizRowsEl, activityAvgEl, quizAvgEl, combinedEl, writtenInputEl });
+
+    addActivityBtn?.addEventListener('click', () => { addRow(activityRowsEl, {}); handleChange(); });
+    addQuizBtn?.addEventListener('click', () => { addRow(quizRowsEl, {}); handleChange(); });
+
+    const delegate = (e) => {
+        const target = e.target;
+        if (!(target instanceof Element)) return;
+        if (target.classList.contains('ww-remove')) {
+            target.closest('.ww-row')?.remove();
+            handleChange();
+        }
+        if (target.classList.contains('ww-date') || target.classList.contains('ww-score')) {
+            handleChange();
+        }
+    };
+
+    activityRowsEl.addEventListener('input', delegate);
+    quizRowsEl.addEventListener('input', delegate);
+    activityRowsEl.addEventListener('click', delegate);
+    quizRowsEl.addEventListener('click', delegate);
+
+    handleChange();
 }
 
 // Add a subject with components for a student
@@ -783,8 +968,27 @@ async function addSubjectForStudent(studentId) {
     const performance = parseFloat(document.getElementById('newPerformance').value);
     const quarterly = parseFloat(document.getElementById('newQuarterly').value);
 
+    const writtenActivities = readWwEntries(document.getElementById('newActivityRows'));
+    const writtenQuizzes = readWwEntries(document.getElementById('newQuizRows'));
+
     if (!title || !quarterLabel || isNaN(written) || isNaN(performance) || isNaN(quarterly)) {
         alert('Please fill in subject name, quarter, and all grade components');
+        return;
+    }
+
+    const combinedEntries = [...writtenActivities, ...writtenQuizzes];
+    if (combinedEntries.length === 0) {
+        alert('Please add at least one Activity or Quiz entry for Written Works.');
+        return;
+    }
+    const activitiesCheck = writtenActivities.length ? validateWwEntries(writtenActivities) : { ok: true };
+    const quizzesCheck = writtenQuizzes.length ? validateWwEntries(writtenQuizzes) : { ok: true };
+    if (!activitiesCheck.ok) {
+        alert('Activities: ' + activitiesCheck.error);
+        return;
+    }
+    if (!quizzesCheck.ok) {
+        alert('Quizzes: ' + quizzesCheck.error);
         return;
     }
 
@@ -814,6 +1018,8 @@ async function addSubjectForStudent(studentId) {
             title,
             quarterLabel,
             written: written.toString(),
+            writtenActivities,
+            writtenQuizzes,
             performance: performance.toString(),
             quarterly: quarterly.toString(),
             final: finalGrade.toString()
@@ -913,69 +1119,185 @@ async function editSubject(studentId, subjectIndex) {
             return;
         }
 
-        const currentTitle = subject.title || '';
-        const currentQuarter = subject.quarterLabel || subject.quarter || '';
-        const currentWritten = subject.written ?? '';
-        const currentPerformance = subject.performance ?? '';
-        const currentQuarterly = subject.quarterly ?? '';
+        const modal = document.createElement('div');
+        modal.className = 'modal active';
 
-        const newTitle = prompt('Subject name:', currentTitle);
-        if (newTitle === null || newTitle.trim() === '') return;
+        const titleValue = subject.title || '';
+        const quarterValue = subject.quarterLabel || subject.quarter || '';
+        const activities = Array.isArray(subject.writtenActivities) ? subject.writtenActivities : [];
+        const quizzes = Array.isArray(subject.writtenQuizzes) ? subject.writtenQuizzes : [];
+        const performanceValue = subject.performance ?? '';
+        const quarterlyValue = subject.quarterly ?? '';
 
-        const newQuarter = prompt('Quarter (e.g. 1st Quarter, 2nd Quarter):', currentQuarter || '');
-        if (newQuarter === null || newQuarter.trim() === '') return;
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 760px; max-height: 80vh; overflow-y: auto; background:#ffffff; color:#111827; text-align:left;">
+                <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+                <h2 style="color:#2563eb; margin-bottom: 0.25rem;"><i class="fas fa-pen"></i> Edit Subject</h2>
+                <p style="color:#6b7280; margin-top:0; margin-bottom: 1rem; font-size:0.9rem;">Update Activities + Quizzes (Written Works), Performance Tasks, and Quarterly Assessment.</p>
 
-        const newWrittenStr = prompt('Written Works (30%):', String(currentWritten));
-        if (newWrittenStr === null) return;
-        const newPerformanceStr = prompt('Performance Tasks (50%):', String(currentPerformance));
-        if (newPerformanceStr === null) return;
-        const newQuarterlyStr = prompt('Quarterly Assessment (20%):', String(currentQuarterly));
-        if (newQuarterlyStr === null) return;
+                <div class="grade-inputs">
+                    <div class="form-group">
+                        <label>Subject Name *</label>
+                        <input type="text" id="editSubjectName" value="${escapeHtml(titleValue)}" placeholder="e.g., Mathematics" />
+                    </div>
+                    <div class="form-group">
+                        <label>Quarter *</label>
+                        <select id="editQuarterLabel">
+                            <option value="">Select Quarter</option>
+                            <option value="1st Quarter">1st Quarter</option>
+                            <option value="2nd Quarter">2nd Quarter</option>
+                            <option value="3rd Quarter">3rd Quarter</option>
+                            <option value="4th Quarter">4th Quarter</option>
+                        </select>
+                    </div>
 
-        const newWritten = parseFloat(newWrittenStr);
-        const newPerformance = parseFloat(newPerformanceStr);
-        const newQuarterlyScore = parseFloat(newQuarterlyStr);
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>Written Works (30%) = Activities + Quizzes *</label>
 
-        if (
-            isNaN(newWritten) || newWritten < 0 || newWritten > 100 ||
-            isNaN(newPerformance) || newPerformance < 0 || newPerformance > 100 ||
-            isNaN(newQuarterlyScore) || newQuarterlyScore < 0 || newQuarterlyScore > 100
-        ) {
-            alert('Please enter valid numeric scores between 0 and 100.');
-            return;
-        }
+                        <div class="ww-grid">
+                            <div class="ww-panel">
+                                <div class="ww-panel-head">
+                                    <div class="ww-panel-title"><i class="fas fa-clipboard-check"></i> Activities</div>
+                                    <button type="button" class="small-btn" id="addEditActivityBtn"><i class="fas fa-plus"></i> Add</button>
+                                </div>
+                                <div class="ww-rows" id="editActivityRows"></div>
+                                <div class="ww-summary">Average: <b id="editActivityAvg">—</b></div>
+                            </div>
 
-        const finalGrade = Math.round(((newWritten * 0.30) + (newPerformance * 0.50) + (newQuarterlyScore * 0.20)) * 10) / 10;
+                            <div class="ww-panel">
+                                <div class="ww-panel-head">
+                                    <div class="ww-panel-title"><i class="fas fa-pen"></i> Quizzes</div>
+                                    <button type="button" class="small-btn" id="addEditQuizBtn"><i class="fas fa-plus"></i> Add</button>
+                                </div>
+                                <div class="ww-rows" id="editQuizRows"></div>
+                                <div class="ww-summary">Average: <b id="editQuizAvg">—</b></div>
+                            </div>
+                        </div>
 
-        subjects[subjectIndex] = {
-            ...subject,
-            title: newTitle.trim(),
-            quarterLabel: newQuarter.trim(),
-            written: newWritten.toString(),
-            performance: newPerformance.toString(),
-            quarterly: newQuarterlyScore.toString(),
-            final: finalGrade.toString()
-        };
+                        <div class="ww-summary" style="margin-top:10px;">Combined (Activities + Quizzes): <b id="editWrittenCombined">—</b></div>
+                        <input type="number" id="editWritten" min="0" max="100" placeholder="Auto-calculated" readonly style="margin-top:10px;">
+                    </div>
 
-        const saveResponse = await fetch(`${API_BASE}/admin.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                action: 'updateGrades',
-                studentId: studentId,
-                subjects
-            })
+                    <div class="form-group">
+                        <label>Performance Tasks (50%) *</label>
+                        <input type="number" id="editPerformance" min="0" max="100" placeholder="0-100" value="${escapeHtml(String(performanceValue))}">
+                    </div>
+                    <div class="form-group">
+                        <label>Quarterly Assessment (20%) *</label>
+                        <input type="number" id="editQuarterly" min="0" max="100" placeholder="0-100" value="${escapeHtml(String(quarterlyValue))}">
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:10px; justify-content:flex-end; margin-top: 14px;">
+                    <button type="button" class="btn btn-secondary" onclick="this.closest('.modal').remove()" style="width:auto; padding:0.6rem 1rem; border-radius: 12px;">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="saveEditSubjectBtn" style="width:auto; padding:0.6rem 1rem; border-radius: 12px;">Save</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const quarterSelect = modal.querySelector('#editQuarterLabel');
+        if (quarterSelect) quarterSelect.value = quarterValue;
+
+        initWrittenWorksBuilder({
+            activityRowsEl: modal.querySelector('#editActivityRows'),
+            quizRowsEl: modal.querySelector('#editQuizRows'),
+            addActivityBtn: modal.querySelector('#addEditActivityBtn'),
+            addQuizBtn: modal.querySelector('#addEditQuizBtn'),
+            activityAvgEl: modal.querySelector('#editActivityAvg'),
+            quizAvgEl: modal.querySelector('#editQuizAvg'),
+            combinedEl: modal.querySelector('#editWrittenCombined'),
+            writtenInputEl: modal.querySelector('#editWritten'),
+            initialActivities: activities,
+            initialQuizzes: quizzes
         });
-        const saveResult = await saveResponse.json();
 
-        if (saveResult.success) {
-            showNotif('Subject updated successfully');
-            document.querySelectorAll('.modal').forEach(m => m.remove());
-            loadStudentsList();
-            openSubjectsModal(studentId);
-        } else {
-            alert('Error: ' + saveResult.error);
+        // If no Activities/Quizzes exist but legacy written exists, keep it visible
+        if ((!activities.length && !quizzes.length) && subject.written) {
+            const legacy = clampScore(parseFloat(subject.written));
+            if (legacy !== null) {
+                modal.querySelector('#editWritten').value = String(round1(legacy));
+                modal.querySelector('#editWrittenCombined').textContent = String(round1(legacy));
+            }
         }
+
+        modal.querySelector('#saveEditSubjectBtn')?.addEventListener('click', async () => {
+            const newTitle = (modal.querySelector('#editSubjectName')?.value || '').trim();
+            const newQuarter = (modal.querySelector('#editQuarterLabel')?.value || '').trim();
+            const newWritten = parseFloat(modal.querySelector('#editWritten')?.value);
+            const newPerformance = parseFloat(modal.querySelector('#editPerformance')?.value);
+            const newQuarterlyScore = parseFloat(modal.querySelector('#editQuarterly')?.value);
+
+            const newActivities = readWwEntries(modal.querySelector('#editActivityRows'));
+            const newQuizzes = readWwEntries(modal.querySelector('#editQuizRows'));
+
+            if (!newTitle || !newQuarter || isNaN(newWritten) || isNaN(newPerformance) || isNaN(newQuarterlyScore)) {
+                alert('Please fill in subject name, quarter, and all grade components');
+                return;
+            }
+            const combinedEntries = [...newActivities, ...newQuizzes];
+            if (combinedEntries.length === 0) {
+                // Backward compatibility: allow saving if this subject previously had legacy written score
+                const hadLegacy = subject && subject.written !== undefined && subject.written !== null && String(subject.written).trim() !== '';
+                if (!hadLegacy) {
+                    alert('Please add at least one Activity or Quiz entry for Written Works.');
+                    return;
+                }
+            } else {
+                const activitiesCheck = newActivities.length ? validateWwEntries(newActivities) : { ok: true };
+                const quizzesCheck = newQuizzes.length ? validateWwEntries(newQuizzes) : { ok: true };
+                if (!activitiesCheck.ok) {
+                    alert('Activities: ' + activitiesCheck.error);
+                    return;
+                }
+                if (!quizzesCheck.ok) {
+                    alert('Quizzes: ' + quizzesCheck.error);
+                    return;
+                }
+            }
+            if (
+                newWritten < 0 || newWritten > 100 ||
+                newPerformance < 0 || newPerformance > 100 ||
+                newQuarterlyScore < 0 || newQuarterlyScore > 100
+            ) {
+                alert('All grades must be between 0 and 100');
+                return;
+            }
+
+            const finalGrade = Math.round(((newWritten * 0.30) + (newPerformance * 0.50) + (newQuarterlyScore * 0.20)) * 10) / 10;
+
+            subjects[subjectIndex] = {
+                ...subject,
+                title: newTitle,
+                quarterLabel: newQuarter,
+                written: round1(newWritten).toString(),
+                writtenActivities: newActivities,
+                writtenQuizzes: newQuizzes,
+                performance: round1(newPerformance).toString(),
+                quarterly: round1(newQuarterlyScore).toString(),
+                final: finalGrade.toString()
+            };
+
+            const saveResponse = await fetch(`${API_BASE}/admin.php`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    action: 'updateGrades',
+                    studentId: studentId,
+                    subjects
+                })
+            });
+            const saveResult = await saveResponse.json();
+
+            if (saveResult.success) {
+                showNotif('Subject updated successfully');
+                document.querySelectorAll('.modal').forEach(m => m.remove());
+                loadStudentsList();
+                openSubjectsModal(studentId);
+            } else {
+                alert('Error: ' + saveResult.error);
+            }
+        });
     } catch (error) {
         console.error('Error updating subject:', error);
         alert('An error occurred while updating the subject');
