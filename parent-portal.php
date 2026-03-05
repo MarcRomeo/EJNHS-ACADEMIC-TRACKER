@@ -122,9 +122,12 @@ if (isset($_POST['send']) && isset($_SESSION['parent'])) {
             $timestamp = date('Y-m-d H:i:s');
             $timestampUnix = time();
 
-            $insert = $pdo->prepare('INSERT INTO messages (sender_email, sender_name, child_name, teacher_username, subject, content, type, status, timestamp, timestamp_unix) VALUES (:sender_email, :sender_name, :child_name, :teacher_username, :subject, :content, :type, :status, :timestamp, :timestamp_unix)');
+            $insert = $pdo->prepare('INSERT INTO messages (sender_email, parent_email, sender_role, sender_name, child_name, teacher_username, subject, content, type, status, timestamp, timestamp_unix)
+                VALUES (:sender_email, :parent_email, :sender_role, :sender_name, :child_name, :teacher_username, :subject, :content, :type, :status, :timestamp, :timestamp_unix)');
             $insert->execute([
                 'sender_email' => $_SESSION['parent']['email'],
+                'parent_email' => $_SESSION['parent']['email'],
+                'sender_role' => 'parent',
                 'sender_name' => $_SESSION['parent']['name'],
                 'child_name' => $_SESSION['parent']['child_name'],
                 'teacher_username' => $teacherUsername,
@@ -201,6 +204,21 @@ if (isset($_GET['logout'])) {
             color: #fff;
             font-family: 'Poppins', sans-serif;
             font-size: 1rem;
+        }
+
+        /* Fix teacher dropdown list readability across browsers */
+        .form-group select {
+            color-scheme: dark;
+            cursor: pointer;
+        }
+        .form-group select option {
+            background: #0b1220;
+            color: #ffffff;
+        }
+        .form-group select:focus {
+            outline: none;
+            border-color: rgba(130, 178, 255, 0.7);
+            box-shadow: 0 0 0 3px rgba(130, 178, 255, 0.18);
         }
         .form-group input::placeholder,
         .form-group textarea::placeholder {
@@ -711,7 +729,10 @@ if (isset($_GET['logout'])) {
             <div class="messages-section">
                 <h2><i class="fas fa-history"></i> Your Message History</h2>
                 <?php
-                $histStmt = $pdo->prepare("SELECT subject, content, timestamp, teacher_username FROM messages WHERE sender_email = :email ORDER BY timestamp_unix DESC");
+                $histStmt = $pdo->prepare("SELECT id, sender_email, parent_email, sender_role, sender_name, child_name, teacher_username, subject, content, timestamp, status
+                    FROM messages
+                    WHERE (parent_email = :email OR sender_email = :email)
+                    ORDER BY timestamp_unix DESC");
                 $histStmt->execute(['email' => $_SESSION['parent']['email']]);
                 $parentMessages = $histStmt->fetchAll();
 
@@ -723,23 +744,46 @@ if (isset($_GET['logout'])) {
                     </p>
                 <?php else: ?>
                     <?php foreach ($parentMessages as $msg): ?>
+                        <?php
+                            $senderRole = $msg['sender_role'] ?? 'parent';
+                            $isFromParent = ($senderRole === 'parent');
+                            $isFromTeacher = ($senderRole === 'teacher' || $senderRole === 'admin');
+                            $toTeacher = $msg['teacher_username'] ?? '';
+                            $replyTeacher = $toTeacher;
+                            $safeSubject = $msg['subject'] ?? '';
+                        ?>
                         <div class="message-item">
                             <div class="message-sender">
-                                <i class="fas fa-user-circle"></i> You
-                                <?php if (!empty($msg['teacher_username'])): ?>
+                                <i class="fas fa-user-circle"></i>
+                                <?php if ($isFromParent): ?>
+                                    You
+                                <?php else: ?>
+                                    <?php echo htmlspecialchars($msg['sender_name'] ?? 'Teacher'); ?>
                                     <span style="margin-left: 0.5rem; font-size: 0.85rem; color: #ccc;">
-                                        &rarr; Teacher: <?php echo htmlspecialchars($msg['teacher_username']); ?>
+                                        (<?php echo htmlspecialchars($msg['sender_role'] ?? 'teacher'); ?>)
                                     </span>
                                 <?php endif; ?>
                             </div>
                             <div class="message-subject">
                                 <strong><i class="fas fa-tag"></i> Subject:</strong> <?php echo htmlspecialchars($msg['subject']); ?>
                             </div>
+                            <?php if (!empty($toTeacher)): ?>
+                                <div style="margin-top: 0.4rem; color:#cbd5e1; font-size: 0.9rem;">
+                                    <i class="fas fa-user-tie"></i>
+                                    <strong>Teacher:</strong> <?php echo htmlspecialchars($toTeacher); ?>
+                                </div>
+                            <?php endif; ?>
                             <div class="message-content">
                                 <?php echo nl2br(htmlspecialchars($msg['content'])); ?>
                             </div>
                             <div class="message-time">
                                 <i class="fas fa-clock"></i> Sent: <?php echo htmlspecialchars($msg['timestamp']); ?>
+                            </div>
+
+                            <div style="margin-top: 0.8rem; display:flex; gap:10px;">
+                                <button type="button" class="btn btn-secondary" style="padding: 0.55rem 0.9rem; border-radius: 10px;" onclick="prefillReply(<?php echo json_encode($replyTeacher); ?>, <?php echo json_encode($safeSubject); ?>)">
+                                    <i class="fas fa-reply"></i> Reply
+                                </button>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -751,6 +795,28 @@ if (isset($_GET['logout'])) {
 </body>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
+    window.prefillReply = function (teacherUsername, subject) {
+        const teacherSelect = document.getElementById('teacher');
+        const subjectInput = document.getElementById('subject');
+        const messageBox = document.getElementById('message');
+
+        if (teacherSelect && teacherUsername) {
+            teacherSelect.value = teacherUsername;
+        }
+        if (subjectInput) {
+            const s = String(subject || '').trim();
+            subjectInput.value = s ? (s.startsWith('Re:') ? s : ('Re: ' + s)) : 'Re:';
+        }
+        if (messageBox) {
+            messageBox.focus();
+        }
+
+        const form = document.querySelector('.parent-form form');
+        if (form) {
+            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+
     const btn = document.getElementById('downloadPdfBtn');
     if (btn) {
         btn.addEventListener('click', function () {
