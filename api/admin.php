@@ -169,12 +169,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     // Get Messages
     if ($action === 'getMessages') {
-        $stmt = $pdo->query('SELECT id, sender_email, sender_name, child_name, teacher_username, subject, content, type, status, timestamp, timestamp_unix FROM messages ORDER BY timestamp_unix DESC');
+        $stmt = $pdo->query('SELECT id, sender_email, parent_email, sender_role, sender_name, child_name, teacher_username, subject, content, type, status, timestamp, timestamp_unix FROM messages ORDER BY timestamp_unix DESC');
         $messages = [];
         while ($row = $stmt->fetch()) {
             $messages[] = [
                 'id' => $row['id'],
                 'sender' => $row['sender_email'],
+                'parentEmail' => $row['parent_email'] ?? '',
+                'senderRole' => $row['sender_role'] ?? 'parent',
                 'senderName' => $row['sender_name'],
                 'childName' => $row['child_name'],
                 'teacherUsername' => $row['teacher_username'],
@@ -191,6 +193,53 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             'success' => true,
             'messages' => $messages
         ]);
+        exit;
+    }
+
+    // Teacher/Admin Reply to Parent
+    if ($action === 'sendTeacherReply') {
+        $teacherUsername = trim($input['teacherUsername'] ?? '');
+        $parentEmail = trim($input['parentEmail'] ?? '');
+        $childName = trim($input['childName'] ?? '');
+        $subject = trim($input['subject'] ?? '');
+        $content = trim($input['content'] ?? '');
+
+        if ($teacherUsername === '' || $parentEmail === '' || $subject === '' || $content === '') {
+            echo json_encode(['success' => false, 'error' => 'teacherUsername, parentEmail, subject, and content are required']);
+            exit;
+        }
+
+        // Verify sender exists (teacher or admin)
+        $stmt = $pdo->prepare('SELECT username, role, name FROM admins WHERE username = :u LIMIT 1');
+        $stmt->execute(['u' => $teacherUsername]);
+        $sender = $stmt->fetch();
+        if (!$sender || !in_array($sender['role'], ['teacher', 'admin'], true)) {
+            echo json_encode(['success' => false, 'error' => 'Invalid teacher/admin account']);
+            exit;
+        }
+
+        $timestamp = date('Y-m-d H:i:s');
+        $timestampUnix = time();
+
+        $insert = $pdo->prepare('INSERT INTO messages (sender_email, parent_email, sender_role, sender_name, child_name, teacher_username, subject, content, type, status, timestamp, timestamp_unix)
+            VALUES (:sender_email, :parent_email, :sender_role, :sender_name, :child_name, :teacher_username, :subject, :content, :type, :status, :timestamp, :timestamp_unix)');
+
+        $insert->execute([
+            'sender_email' => $sender['username'],
+            'parent_email' => $parentEmail,
+            'sender_role' => $sender['role'],
+            'sender_name' => $sender['name'],
+            'child_name' => $childName,
+            'teacher_username' => $teacherUsername,
+            'subject' => $subject,
+            'content' => $content,
+            'type' => 'teacher-to-parent',
+            'status' => 'unread',
+            'timestamp' => $timestamp,
+            'timestamp_unix' => $timestampUnix,
+        ]);
+
+        echo json_encode(['success' => true, 'message' => 'Reply sent']);
         exit;
     }
     
