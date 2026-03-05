@@ -32,6 +32,27 @@ function showNotif(message) {
     setTimeout(() => notif.remove(), 3000);
 }
 
+function getSubjectFinalNumber(subject) {
+    if (!subject || typeof subject !== 'object') return null;
+    const raw = subject.final ?? subject.grade;
+    const num = parseFloat(raw);
+    return Number.isFinite(num) ? num : null;
+}
+
+// DepEd-style: General Average = (sum of subject final grades) / (total number of subjects)
+function computeGeneralAverage(subjects) {
+    const list = Array.isArray(subjects) ? subjects : [];
+    const finals = list.map(getSubjectFinalNumber).filter(v => v !== null);
+    if (finals.length === 0) return null;
+    return finals.reduce((a, b) => a + b, 0) / finals.length;
+}
+
+function formatGeneralAverage(avg, { decimals = 0 } = {}) {
+    if (avg === null) return 'N/A';
+    if (decimals === 0) return String(Math.round(avg));
+    return avg.toFixed(decimals);
+}
+
 function showSection(section) {
     homeSection.style.display = 'none';
     dashboardSection.style.display = 'none';
@@ -273,6 +294,8 @@ async function renderParentDashboard() {
             
             if (result.success) {
                 const student = result.student;
+                const generalAvg = computeGeneralAverage(student.subjects);
+                const generalAvgText = formatGeneralAverage(generalAvg, { decimals: 0 });
                 gradesHTML += `
                     <div class="card" style="margin-bottom: 1.5rem;">
                         <h3 style="color: #82b2ff; margin-bottom: 1rem;">
@@ -280,14 +303,16 @@ async function renderParentDashboard() {
                         </h3>
                         <p style="margin-bottom: 0.5rem;"><strong>Grade:</strong> ${student.grade}</p>
                         <p style="margin-bottom: 1rem;"><strong>Section:</strong> ${student.section}</p>
+
+                        <p style="margin-bottom: 1rem;"><strong>General Average:</strong> <span style="color:#4CAF50; font-weight:700;">${generalAvgText}</span></p>
                         
-                        ${student.subjects.length > 0 ? `
+                        ${Array.isArray(student.subjects) && student.subjects.length > 0 ? `
                             <h4 style="color: #a5d6a7; margin-bottom: 0.5rem;">Subjects & Grades:</h4>
                             <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px;">
                                 ${student.subjects.map(sub => `
                                     <div style="display: flex; justify-content: space-between; padding: 0.5rem 0; border-bottom: 1px solid rgba(255,255,255,0.1);">
                                         <span>${sub.title}</span>
-                                        <span style="color: #4CAF50; font-weight: bold;">${sub.grade}</span>
+                                        <span style="color: #4CAF50; font-weight: bold;">${sub.final ?? sub.grade}</span>
                                     </div>
                                 `).join('')}
                             </div>
@@ -569,16 +594,8 @@ async function loadStudentsList() {
 
         if (result.success && result.students.length > 0) {
             listEl.innerHTML = result.students.map(student => {
-                let finalGrade = 'N/A';
-                if (student.subjects && student.subjects.length > 0) {
-                    const finals = student.subjects
-                        .map(s => parseFloat(s.final ?? s.grade))
-                        .filter(v => !isNaN(v));
-                    if (finals.length > 0) {
-                        const avg = finals.reduce((a, b) => a + b, 0) / finals.length;
-                        finalGrade = avg.toFixed(1);
-                    }
-                }
+                const avg = computeGeneralAverage(student.subjects);
+                const finalGrade = formatGeneralAverage(avg, { decimals: 0 });
 
                 return `
                     <div class="student-item">
@@ -586,7 +603,7 @@ async function loadStudentsList() {
                             <div class="student-name">${student.name}</div>
                             <div class="student-meta">
                                 ${student.grade} - ${student.section} | 
-                                Final Grade: <strong>${finalGrade}</strong> |
+                                General Average: <strong>${finalGrade}</strong> |
                                 Code: <code>${student.childCode}</code>
                             </div>
                         </div>
@@ -622,34 +639,49 @@ function showSimpleChildCodeModal(student) {
     const modal = document.createElement('div');
     modal.className = 'modal active';
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-content" style="max-width: 560px; background:#ffffff; color:#111827; text-align:left; backdrop-filter:none;">
             <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
             <h2 style="color: #2563eb; margin-bottom: 1rem;">
                 <i class="fas fa-check-circle"></i> Student Added!
             </h2>
-            <div style="background: rgba(37, 99, 235, 0.1); padding: 1.5rem; border-radius: 8px; margin: 1rem 0;">
-                <p style="margin-bottom: 0.5rem; color: #374151;"><strong>Student:</strong> ${student.name}</p>
-                <p style="margin-bottom: 0.5rem; color: #374151;"><strong>Grade:</strong> ${student.grade} - ${student.section}</p>
-                <p style="margin-bottom: 0.5rem; color: #374151;"><strong>Child Code:</strong></p>
-                <div style="background: #fff; padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 1.2rem; letter-spacing: 1px; text-align: center; color: #2563eb; border: 2px solid #2563eb;">
-                    ${student.childCode}
+            <div style="background:#f8fafc; padding: 1rem; border-radius: 12px; border: 1px solid #e5e7eb; margin: 1rem 0;">
+                <div style="display:grid; gap:6px;">
+                    <div style="color:#374151;"><strong>Student:</strong> ${escapeHtml(student.name)}</div>
+                    <div style="color:#374151;"><strong>Grade:</strong> ${escapeHtml(student.grade)} - ${escapeHtml(student.section)}</div>
                 </div>
-                <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #6b7280;">
-                    Share this code with the parent. After that, add subjects and their Activities + Quizzes (Written Works), Performance Tasks, and Quarterly Assessment for this student.
-                </p>
+
+                <div style="margin-top: 12px;">
+                    <div style="margin-bottom:6px; color:#374151; font-weight:700;">Child Code</div>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <input
+                            type="text"
+                            value="${escapeHtml(student.childCode)}"
+                            readonly
+                            style="flex:1; width:100%; padding: 12px 12px; border-radius: 10px; border: 2px solid #2563eb; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 1.05rem; letter-spacing: 1px; color:#1d4ed8; background:#ffffff;"
+                            onclick="this.select()"
+                        />
+                        <button
+                            type="button"
+                            onclick="copyToClipboard('${student.childCode}'); this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy', 1200)"
+                            style="white-space:nowrap; background: #10b981; color: white; border: none; padding: 12px 14px; border-radius: 10px; cursor: pointer; font-weight:700;"
+                        >Copy</button>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 0.9rem; color: #4b5563; line-height:1.4;">
+                        Share this code with the parent so they can link their account. Then add the student's subjects and grade components.
+                    </div>
+                </div>
             </div>
-            <button onclick="openSubjectsModal('${student.id}'); this.closest('.modal').remove()" 
-                style="background: #2563eb; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin: 5px 0; width: 100%;">
-                <i class="fas fa-book"></i> Add Subjects & Grades
-            </button>
-            <button onclick="copyToClipboard('${student.childCode}'); this.innerText='Copied!'" 
-                style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin: 5px; width: calc(50% - 10px);">
-                <i class="fas fa-copy"></i> Copy Code
-            </button>
-            <button onclick="this.closest('.modal').remove()" 
-                style="background: #6b7280; color: white; border: none; padding: 10px 20px; border-radius: 6px; cursor: pointer; margin: 5px; width: calc(50% - 10px);">
-                Close
-            </button>
+
+            <div style="display:grid; gap:10px;">
+                <button type="button" onclick="openSubjectsModal('${student.id}'); this.closest('.modal').remove()"
+                    style="background: #2563eb; color: white; border: none; padding: 12px 16px; border-radius: 10px; cursor: pointer; width: 100%; font-weight:700;">
+                    <i class="fas fa-book"></i> Add Subjects & Grades
+                </button>
+                <button type="button" onclick="this.closest('.modal').remove()"
+                    style="background: #6b7280; color: white; border: none; padding: 12px 16px; border-radius: 10px; cursor: pointer; width: 100%; font-weight:700;">
+                    Close
+                </button>
+            </div>
         </div>
     `;
     document.body.appendChild(modal);
@@ -673,11 +705,13 @@ async function openSubjectsModal(studentId) {
         }
 
         const subjects = student.subjects || [];
+        const generalAvg = computeGeneralAverage(subjects);
+        const generalAvgText = formatGeneralAverage(generalAvg, { decimals: 0 });
 
         const modal = document.createElement('div');
         modal.className = 'modal active';
         modal.innerHTML = `
-            <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto; background:#ffffff; color:#111827;">
+            <div class="modal-content" style="width: 94vw; max-width: 980px; max-height: 80vh; overflow-y: auto; background:#ffffff; color:#111827; text-align:left;">
                 <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
                 <h2 style="color: #2563eb; margin-bottom: 1rem;">
                     <i class="fas fa-book"></i> Subjects - ${student.name}
@@ -692,6 +726,12 @@ async function openSubjectsModal(studentId) {
 
                 <div style="margin-bottom:1.5rem;">
                     <h3 style="font-size:1rem; color:#374151; margin-bottom:0.5rem;">Current Subjects</h3>
+                    ${subjects.length > 0 ? `
+                        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; background:#ecfdf5; border:1px solid #a7f3d0; padding:10px 12px; border-radius:10px; margin-bottom:10px;">
+                            <div style="color:#065f46; font-weight:700;">General Average (DepEd):</div>
+                            <div style="color:#065f46; font-weight:800; font-size:1.05rem;">${generalAvgText}</div>
+                        </div>
+                    ` : ''}
                     ${subjects.length === 0 ? `
                         <p style="color:#9ca3af;">No subjects yet. Use the form below to add one.</p>
                     ` : `
@@ -710,7 +750,7 @@ async function openSubjectsModal(studentId) {
                             <tbody>
                                 ${subjects.map((sub, idx) => {
                                     const written = formatWrittenWorksScore(sub);
-                                    const performance = sub.performance ?? '';
+                                    const performance = formatPerformanceTasksScore(sub);
                                     const quarterly = sub.quarterly ?? '';
                                     const final = sub.final ?? sub.grade ?? '';
                                     const quarterLabel = sub.quarterLabel ?? sub.quarter ?? '';
@@ -730,6 +770,13 @@ async function openSubjectsModal(studentId) {
                                     `;
                                 }).join('')}
                             </tbody>
+                            <tfoot>
+                                <tr style="background:#f3f4f6; border-top:2px solid #e5e7eb; color:#111827;">
+                                    <td colspan="5" style="padding:10px 8px; text-align:right; font-weight:800;">General Average</td>
+                                    <td style="padding:10px 8px; text-align:center; font-weight:900; color:#065f46;">${generalAvgText}</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
                         </table>
                     `}
                 </div>
@@ -761,7 +808,7 @@ async function openSubjectsModal(studentId) {
                                         <button type="button" class="small-btn" id="addNewActivityBtn"><i class="fas fa-plus"></i> Add</button>
                                     </div>
                                     <div class="ww-rows" id="newActivityRows"></div>
-                                    <div class="ww-summary">Average: <b id="newActivityAvg">—</b></div>
+                                    <div class="ww-summary">Percentage Score: <b id="newActivityAvg">—</b></div>
                                 </div>
 
                                 <div class="ww-panel">
@@ -770,16 +817,37 @@ async function openSubjectsModal(studentId) {
                                         <button type="button" class="small-btn" id="addNewQuizBtn"><i class="fas fa-plus"></i> Add</button>
                                     </div>
                                     <div class="ww-rows" id="newQuizRows"></div>
-                                    <div class="ww-summary">Average: <b id="newQuizAvg">—</b></div>
+                                    <div class="ww-summary">Percentage Score: <b id="newQuizAvg">—</b></div>
                                 </div>
                             </div>
 
                             <div class="ww-summary" style="margin-top:10px;">Combined (Activities + Quizzes): <b id="newWrittenCombined">—</b></div>
                             <input type="number" id="newWritten" min="0" max="100" placeholder="Auto-calculated" readonly style="margin-top:10px;">
                         </div>
-                        <div class="form-group">
-                            <label>Performance Tasks (50%) *</label>
-                            <input type="number" id="newPerformance" min="0" max="100" placeholder="0-100">
+                        <div class="form-group" style="grid-column: 1 / -1;">
+                            <label>Performance Tasks (50%) (PETA) *</label>
+                            <div class="ww-grid" style="margin-top:8px;">
+                                <div class="ww-panel">
+                                    <div class="ww-panel-head">
+                                        <div class="ww-panel-title"><i class="fas fa-tasks"></i> PETA</div>
+                                        <button type="button" class="small-btn" id="addNewPetaBtn"><i class="fas fa-plus"></i> Add</button>
+                                    </div>
+                                    <div class="ww-rows" id="newPetaRows"></div>
+                                    <div class="ww-summary">Percentage Score: <b id="newPetaAvg">—</b></div>
+                                </div>
+
+                                <div class="ww-panel">
+                                    <div class="ww-panel-head">
+                                        <div class="ww-panel-title"><i class="fas fa-clipboard-list"></i> Other Performance Tasks</div>
+                                        <button type="button" class="small-btn" id="addNewOtherPerformanceBtn"><i class="fas fa-plus"></i> Add</button>
+                                    </div>
+                                    <div class="ww-rows" id="newOtherPerformanceRows"></div>
+                                    <div class="ww-summary">Percentage Score: <b id="newOtherPerformanceAvg">—</b></div>
+                                </div>
+                            </div>
+
+                            <div class="ww-summary" style="margin-top:10px;">Combined (Performance Tasks): <b id="newPerformanceCombined">—</b></div>
+                            <input type="number" id="newPerformance" min="0" max="100" placeholder="Auto-calculated" readonly style="margin-top:10px;">
                         </div>
                         <div class="form-group">
                             <label>Quarterly Assessment (20%) *</label>
@@ -808,6 +876,22 @@ async function openSubjectsModal(studentId) {
             initialQuizzes: []
         });
 
+        // initialize Performance Tasks (PETA) builder for new subjects (split like Activities/Quizzes)
+        initDualEntriesBuilder({
+            leftRowsEl: modal.querySelector('#newPetaRows'),
+            rightRowsEl: modal.querySelector('#newOtherPerformanceRows'),
+            addLeftBtn: modal.querySelector('#addNewPetaBtn'),
+            addRightBtn: modal.querySelector('#addNewOtherPerformanceBtn'),
+            leftAvgEl: modal.querySelector('#newPetaAvg'),
+            rightAvgEl: modal.querySelector('#newOtherPerformanceAvg'),
+            combinedEl: modal.querySelector('#newPerformanceCombined'),
+            outputEl: modal.querySelector('#newPerformance'),
+            initialLeftEntries: [],
+            initialRightEntries: [],
+            leftTitlePrefix: 'PETA',
+            rightTitlePrefix: 'Task'
+        });
+
     } catch (error) {
         console.error('Error loading student subjects:', error);
         alert('Error loading subjects');
@@ -816,6 +900,10 @@ async function openSubjectsModal(studentId) {
 
 function round1(value) {
     return Math.round(value * 10) / 10;
+}
+
+function round0(value) {
+    return Math.round(value);
 }
 
 function escapeHtml(value) {
@@ -832,25 +920,65 @@ function clampScore(score) {
     return Math.min(100, Math.max(0, score));
 }
 
-function computeAverageScore(entries) {
-    const scores = (entries || [])
-        .map(e => clampScore(parseFloat(e?.score)))
-        .filter(v => Number.isFinite(v));
-    if (!scores.length) return null;
-    const avg = scores.reduce((sum, v) => sum + v, 0) / scores.length;
-    return round1(avg);
+function toFiniteNumber(value) {
+    const num = typeof value === 'number' ? value : parseFloat(String(value ?? ''));
+    return Number.isFinite(num) ? num : null;
+}
+
+function clampNonNegative(value) {
+    if (!Number.isFinite(value)) return null;
+    return Math.max(0, value);
+}
+
+function computePercentageScore(entries) {
+    const list = Array.isArray(entries) ? entries : [];
+    let totalScore = 0;
+    let totalOver = 0;
+
+    for (const entry of list) {
+        const score = clampNonNegative(toFiniteNumber(entry?.score));
+        const over = clampNonNegative(toFiniteNumber(entry?.over));
+        if (score === null || over === null) continue;
+        if (over <= 0) continue;
+        totalScore += Math.min(score, over);
+        totalOver += over;
+    }
+
+    if (totalOver <= 0) return null;
+    const percent = (totalScore / totalOver) * 100;
+    return round1(clampScore(percent));
+}
+
+// DepEd K–12 grading uses transmutation. A common linear transmutation maps
+// Initial Grade 60 -> Quarterly Grade 75 and Initial Grade 100 -> 100.
+function transmuteDepEd(initialGrade) {
+    const ig = clampScore(toFiniteNumber(initialGrade));
+    if (ig === null) return null;
+    const transmuted = (ig * 0.625) + 37.5;
+    const qg = round0(transmuted);
+    return Math.min(100, Math.max(60, qg));
+}
+
+function computeDepEdFinalGrade({ writtenPS, performancePS, quarterlyPS }) {
+    const w = clampScore(toFiniteNumber(writtenPS));
+    const p = clampScore(toFiniteNumber(performancePS));
+    const q = clampScore(toFiniteNumber(quarterlyPS));
+    if (w === null || p === null || q === null) return { initialGrade: null, quarterlyGrade: null };
+    const initialGrade = round1((w * 0.30) + (p * 0.50) + (q * 0.20));
+    const quarterlyGrade = transmuteDepEd(initialGrade);
+    return { initialGrade, quarterlyGrade };
 }
 
 function computeWrittenWorksScore(subjectOrParts) {
     const activities = Array.isArray(subjectOrParts?.writtenActivities) ? subjectOrParts.writtenActivities : (subjectOrParts?.activities || []);
     const quizzes = Array.isArray(subjectOrParts?.writtenQuizzes) ? subjectOrParts.writtenQuizzes : (subjectOrParts?.quizzes || []);
     const combined = [...activities, ...quizzes];
-    const avg = computeAverageScore(combined);
-    if (avg === null) {
+    const ps = computePercentageScore(combined);
+    if (ps === null) {
         const legacy = clampScore(parseFloat(subjectOrParts?.written));
         return legacy === null ? null : round1(legacy);
     }
-    return avg;
+    return ps;
 }
 
 function formatWrittenWorksScore(subject) {
@@ -858,12 +986,38 @@ function formatWrittenWorksScore(subject) {
     return score === null ? '' : String(score);
 }
 
-function createWwRow({ date = '', score = '' } = {}) {
+function computePerformanceTasksScore(subject) {
+    const peta = Array.isArray(subject?.performancePetaTasks)
+        ? subject.performancePetaTasks
+        : (Array.isArray(subject?.performancePeta) ? subject.performancePeta : []);
+    const other = Array.isArray(subject?.performanceOtherTasks)
+        ? subject.performanceOtherTasks
+        : (Array.isArray(subject?.performanceOther) ? subject.performanceOther : []);
+    const legacyTasks = Array.isArray(subject?.performanceTasks) ? subject.performanceTasks : [];
+    const entries = (peta.length || other.length) ? [...peta, ...other] : legacyTasks;
+
+    const ps = computePercentageScore(entries);
+    if (ps === null) {
+        const legacy = clampScore(parseFloat(subject?.performance));
+        return legacy === null ? null : round1(legacy);
+    }
+    return ps;
+}
+
+function formatPerformanceTasksScore(subject) {
+    const score = computePerformanceTasksScore(subject);
+    return score === null ? '' : String(score);
+}
+
+function createWwRow({ title = '', date = '', score = '', over = '', seeded = false } = {}) {
     const row = document.createElement('div');
     row.className = 'ww-row';
+    if (seeded) row.dataset.seeded = '1';
     row.innerHTML = `
+        <input type="text" class="ww-title" placeholder="Title" value="${escapeHtml(title)}" />
         <input type="date" class="ww-date" value="${escapeHtml(date)}" />
-        <input type="number" class="ww-score" min="0" max="100" placeholder="Score" value="${escapeHtml(String(score))}" />
+        <input type="number" class="ww-score" min="0" step="0.01" placeholder="Score" value="${escapeHtml(String(score))}" />
+        <input type="number" class="ww-over" min="1" step="0.01" placeholder="Over" value="${escapeHtml(String(over))}" />
         <button type="button" class="icon-btn ww-remove" title="Remove">&times;</button>
     `;
     return row;
@@ -871,11 +1025,27 @@ function createWwRow({ date = '', score = '' } = {}) {
 
 function readWwEntries(rowsEl) {
     if (!rowsEl) return [];
-    return Array.from(rowsEl.querySelectorAll('.ww-row')).map(row => {
-        const date = row.querySelector('.ww-date')?.value || '';
-        const score = row.querySelector('.ww-score')?.value || '';
-        return { date, score };
-    }).filter(e => e.date || e.score !== '');
+    return Array.from(rowsEl.querySelectorAll('.ww-row'))
+        .map(row => {
+            const seeded = row.dataset.seeded === '1';
+            const title = row.querySelector('.ww-title')?.value || '';
+            const date = row.querySelector('.ww-date')?.value || '';
+            const score = row.querySelector('.ww-score')?.value || '';
+            const over = row.querySelector('.ww-over')?.value || '';
+            return { title, date, score, over, _seeded: seeded };
+        })
+        .filter(e => {
+            const title = String(e.title || '').trim();
+            const date = String(e.date || '').trim();
+            const score = String(e.score ?? '').trim();
+            const over = String(e.over ?? '').trim();
+            const hasOther = Boolean(date || score || over);
+            const hasAny = Boolean(title || hasOther);
+            if (!hasAny) return false;
+            if (e._seeded && !hasOther) return false;
+            return true;
+        })
+        .map(({ _seeded, ...rest }) => rest);
 }
 
 function validateWwEntries(entries) {
@@ -883,13 +1053,19 @@ function validateWwEntries(entries) {
     if (!list.length) return { ok: false, error: 'Please add at least one entry.' };
 
     for (const entry of list) {
+        const title = (entry?.title || '').trim();
         const date = (entry?.date || '').trim();
         const scoreStr = String(entry?.score ?? '').trim();
+        const overStr = String(entry?.over ?? '').trim();
         const score = parseFloat(scoreStr);
+        const over = parseFloat(overStr);
 
+        if (!title) return { ok: false, error: 'Please provide a title for each entry.' };
         if (!date) return { ok: false, error: 'Please provide a date for each entry.' };
         if (scoreStr === '' || !Number.isFinite(score)) return { ok: false, error: 'Please provide a numeric score for each entry.' };
-        if (score < 0 || score > 100) return { ok: false, error: 'All entry scores must be between 0 and 100.' };
+        if (overStr === '' || !Number.isFinite(over) || over <= 0) return { ok: false, error: 'Please provide a valid "over" value for each entry.' };
+        if (score < 0) return { ok: false, error: 'Scores cannot be negative.' };
+        if (score > over) return { ok: false, error: 'Score cannot be greater than "over".' };
     }
 
     return { ok: true };
@@ -899,14 +1075,188 @@ function updateWrittenWorksSummary({ activityRowsEl, quizRowsEl, activityAvgEl, 
     const activities = readWwEntries(activityRowsEl);
     const quizzes = readWwEntries(quizRowsEl);
 
-    const activityAvg = computeAverageScore(activities);
-    const quizAvg = computeAverageScore(quizzes);
-    const combinedAvg = computeWrittenWorksScore({ activities, quizzes });
+    const activityPS = computePercentageScore(activities);
+    const quizPS = computePercentageScore(quizzes);
+    const combinedPS = computeWrittenWorksScore({ activities, quizzes });
 
-    if (activityAvgEl) activityAvgEl.textContent = activityAvg === null ? '—' : String(activityAvg);
-    if (quizAvgEl) quizAvgEl.textContent = quizAvg === null ? '—' : String(quizAvg);
-    if (combinedEl) combinedEl.textContent = combinedAvg === null ? '—' : String(combinedAvg);
-    if (writtenInputEl) writtenInputEl.value = combinedAvg === null ? '' : String(combinedAvg);
+    if (activityAvgEl) activityAvgEl.textContent = activityPS === null ? '—' : String(activityPS);
+    if (quizAvgEl) quizAvgEl.textContent = quizPS === null ? '—' : String(quizPS);
+    if (combinedEl) combinedEl.textContent = combinedPS === null ? '—' : String(combinedPS);
+    if (writtenInputEl) writtenInputEl.value = combinedPS === null ? '' : String(combinedPS);
+}
+
+function updateSingleEntriesSummary({ rowsEl, scoreEl, outputEl }) {
+    const entries = readWwEntries(rowsEl);
+    const ps = computePercentageScore(entries);
+    if (scoreEl) scoreEl.textContent = ps === null ? '—' : String(ps);
+    if (outputEl) outputEl.value = ps === null ? '' : String(ps);
+}
+
+function updateDualEntriesSummary({ leftRowsEl, rightRowsEl, leftAvgEl, rightAvgEl, combinedEl, outputEl }) {
+    const left = readWwEntries(leftRowsEl);
+    const right = readWwEntries(rightRowsEl);
+
+    const leftPS = computePercentageScore(left);
+    const rightPS = computePercentageScore(right);
+    const combinedPS = computePercentageScore([...left, ...right]);
+
+    if (leftAvgEl) leftAvgEl.textContent = leftPS === null ? '—' : String(leftPS);
+    if (rightAvgEl) rightAvgEl.textContent = rightPS === null ? '—' : String(rightPS);
+    if (combinedEl) combinedEl.textContent = combinedPS === null ? '—' : String(combinedPS);
+    if (outputEl) outputEl.value = combinedPS === null ? '' : String(combinedPS);
+}
+
+function initDualEntriesBuilder({
+    leftRowsEl,
+    rightRowsEl,
+    addLeftBtn,
+    addRightBtn,
+    leftAvgEl,
+    rightAvgEl,
+    combinedEl,
+    outputEl,
+    initialLeftEntries = [],
+    initialRightEntries = [],
+    leftTitlePrefix = 'Entry',
+    rightTitlePrefix = 'Entry'
+}) {
+    if (!leftRowsEl || !rightRowsEl) return;
+
+    const addRow = (rowsEl, data) => {
+        rowsEl.appendChild(createWwRow(data));
+    };
+
+    if (initialLeftEntries.length) {
+        initialLeftEntries.forEach((e, idx) => {
+            const title = (e?.title || '').trim() || `${leftTitlePrefix} ${idx + 1}`;
+            const over = e?.over ?? (e?.total ?? 100);
+            addRow(leftRowsEl, {
+                title,
+                date: e?.date || '',
+                score: e?.score ?? '',
+                over: over === '' || over === undefined ? 100 : over
+            });
+        });
+    } else {
+        addRow(leftRowsEl, { title: `${leftTitlePrefix} 1`, seeded: true });
+    }
+
+    if (initialRightEntries.length) {
+        initialRightEntries.forEach((e, idx) => {
+            const title = (e?.title || '').trim() || `${rightTitlePrefix} ${idx + 1}`;
+            const over = e?.over ?? (e?.total ?? 100);
+            addRow(rightRowsEl, {
+                title,
+                date: e?.date || '',
+                score: e?.score ?? '',
+                over: over === '' || over === undefined ? 100 : over
+            });
+        });
+    } else {
+        addRow(rightRowsEl, { title: `${rightTitlePrefix} 1`, seeded: true });
+    }
+
+    const handleChange = () => updateDualEntriesSummary({ leftRowsEl, rightRowsEl, leftAvgEl, rightAvgEl, combinedEl, outputEl });
+
+    addLeftBtn?.addEventListener('click', () => {
+        const count = leftRowsEl.querySelectorAll('.ww-row').length;
+        addRow(leftRowsEl, { title: `${leftTitlePrefix} ${count + 1}` });
+        handleChange();
+    });
+
+    addRightBtn?.addEventListener('click', () => {
+        const count = rightRowsEl.querySelectorAll('.ww-row').length;
+        addRow(rightRowsEl, { title: `${rightTitlePrefix} ${count + 1}` });
+        handleChange();
+    });
+
+    const delegate = (e) => {
+        const target = e.target;
+        if (!(target instanceof Element)) return;
+        if (target.classList.contains('ww-remove')) {
+            target.closest('.ww-row')?.remove();
+            handleChange();
+        }
+        if (
+            target.classList.contains('ww-title') ||
+            target.classList.contains('ww-date') ||
+            target.classList.contains('ww-score') ||
+            target.classList.contains('ww-over')
+        ) {
+            const row = target.closest('.ww-row');
+            if (row?.dataset?.seeded) delete row.dataset.seeded;
+            handleChange();
+        }
+    };
+
+    leftRowsEl.addEventListener('input', delegate);
+    rightRowsEl.addEventListener('input', delegate);
+    leftRowsEl.addEventListener('click', delegate);
+    rightRowsEl.addEventListener('click', delegate);
+
+    handleChange();
+}
+
+function initSingleEntriesBuilder({
+    rowsEl,
+    addBtn,
+    scoreEl,
+    outputEl,
+    initialEntries = [],
+    defaultTitlePrefix = 'Entry'
+}) {
+    if (!rowsEl) return;
+
+    const addRow = (data) => {
+        rowsEl.appendChild(createWwRow(data));
+    };
+
+    if (initialEntries.length) {
+        initialEntries.forEach((e, idx) => {
+            const title = (e?.title || '').trim() || `${defaultTitlePrefix} ${idx + 1}`;
+            const over = e?.over ?? (e?.total ?? 100);
+            addRow({
+                title,
+                date: e?.date || '',
+                score: e?.score ?? '',
+                over: over === '' || over === undefined ? 100 : over
+            });
+        });
+    } else {
+        addRow({ title: `${defaultTitlePrefix} 1`, seeded: true });
+    }
+
+    const handleChange = () => updateSingleEntriesSummary({ rowsEl, scoreEl, outputEl });
+
+    addBtn?.addEventListener('click', () => {
+        const count = rowsEl.querySelectorAll('.ww-row').length;
+        addRow({ title: `${defaultTitlePrefix} ${count + 1}` });
+        handleChange();
+    });
+
+    const delegate = (e) => {
+        const target = e.target;
+        if (!(target instanceof Element)) return;
+        if (target.classList.contains('ww-remove')) {
+            target.closest('.ww-row')?.remove();
+            handleChange();
+        }
+        if (
+            target.classList.contains('ww-title') ||
+            target.classList.contains('ww-date') ||
+            target.classList.contains('ww-score') ||
+            target.classList.contains('ww-over')
+        ) {
+            const row = target.closest('.ww-row');
+            if (row?.dataset?.seeded) delete row.dataset.seeded;
+            handleChange();
+        }
+    };
+
+    rowsEl.addEventListener('input', delegate);
+    rowsEl.addEventListener('click', delegate);
+
+    handleChange();
 }
 
 function initWrittenWorksBuilder({
@@ -929,16 +1279,40 @@ function initWrittenWorksBuilder({
     };
 
     // Seed at least one row for better UX
-    if (initialActivities.length) initialActivities.forEach(a => addRow(activityRowsEl, a));
-    else addRow(activityRowsEl, {});
+    if (initialActivities.length) {
+        initialActivities.forEach((a, idx) => addRow(activityRowsEl, {
+            title: (a?.title || '').trim() || `Activity ${idx + 1}`,
+            date: a?.date || '',
+            score: a?.score ?? '',
+            over: a?.over ?? 100
+        }));
+    } else {
+        addRow(activityRowsEl, { title: 'Activity 1', seeded: true });
+    }
 
-    if (initialQuizzes.length) initialQuizzes.forEach(q => addRow(quizRowsEl, q));
-    else addRow(quizRowsEl, {});
+    if (initialQuizzes.length) {
+        initialQuizzes.forEach((q, idx) => addRow(quizRowsEl, {
+            title: (q?.title || '').trim() || `Quiz ${idx + 1}`,
+            date: q?.date || '',
+            score: q?.score ?? '',
+            over: q?.over ?? 100
+        }));
+    } else {
+        addRow(quizRowsEl, { title: 'Quiz 1', seeded: true });
+    }
 
     const handleChange = () => updateWrittenWorksSummary({ activityRowsEl, quizRowsEl, activityAvgEl, quizAvgEl, combinedEl, writtenInputEl });
 
-    addActivityBtn?.addEventListener('click', () => { addRow(activityRowsEl, {}); handleChange(); });
-    addQuizBtn?.addEventListener('click', () => { addRow(quizRowsEl, {}); handleChange(); });
+    addActivityBtn?.addEventListener('click', () => {
+        const count = activityRowsEl.querySelectorAll('.ww-row').length;
+        addRow(activityRowsEl, { title: `Activity ${count + 1}` });
+        handleChange();
+    });
+    addQuizBtn?.addEventListener('click', () => {
+        const count = quizRowsEl.querySelectorAll('.ww-row').length;
+        addRow(quizRowsEl, { title: `Quiz ${count + 1}` });
+        handleChange();
+    });
 
     const delegate = (e) => {
         const target = e.target;
@@ -947,7 +1321,14 @@ function initWrittenWorksBuilder({
             target.closest('.ww-row')?.remove();
             handleChange();
         }
-        if (target.classList.contains('ww-date') || target.classList.contains('ww-score')) {
+        if (
+            target.classList.contains('ww-title') ||
+            target.classList.contains('ww-date') ||
+            target.classList.contains('ww-score') ||
+            target.classList.contains('ww-over')
+        ) {
+            const row = target.closest('.ww-row');
+            if (row?.dataset?.seeded) delete row.dataset.seeded;
             handleChange();
         }
     };
@@ -970,6 +1351,9 @@ async function addSubjectForStudent(studentId) {
 
     const writtenActivities = readWwEntries(document.getElementById('newActivityRows'));
     const writtenQuizzes = readWwEntries(document.getElementById('newQuizRows'));
+    const performancePetaTasks = readWwEntries(document.getElementById('newPetaRows'));
+    const performanceOtherTasks = readWwEntries(document.getElementById('newOtherPerformanceRows'));
+    const performanceTasks = [...performancePetaTasks, ...performanceOtherTasks];
 
     if (!title || !quarterLabel || isNaN(written) || isNaN(performance) || isNaN(quarterly)) {
         alert('Please fill in subject name, quarter, and all grade components');
@@ -992,12 +1376,31 @@ async function addSubjectForStudent(studentId) {
         return;
     }
 
+    if (!performanceTasks.length) {
+        alert('Please add at least one Performance Task (PETA) entry.');
+        return;
+    }
+    const petaCheck = performancePetaTasks.length ? validateWwEntries(performancePetaTasks) : { ok: true };
+    const otherCheck = performanceOtherTasks.length ? validateWwEntries(performanceOtherTasks) : { ok: true };
+    if (!petaCheck.ok) {
+        alert('PETA: ' + petaCheck.error);
+        return;
+    }
+    if (!otherCheck.ok) {
+        alert('Other Performance Tasks: ' + otherCheck.error);
+        return;
+    }
+
     if (written < 0 || written > 100 || performance < 0 || performance > 100 || quarterly < 0 || quarterly > 100) {
         alert('All grades must be between 0 and 100');
         return;
     }
 
-    const finalGrade = Math.round(((written * 0.30) + (performance * 0.50) + (quarterly * 0.20)) * 10) / 10;
+    const { quarterlyGrade } = computeDepEdFinalGrade({ writtenPS: written, performancePS: performance, quarterlyPS: quarterly });
+    if (quarterlyGrade === null) {
+        alert('Unable to compute final grade. Please check inputs.');
+        return;
+    }
 
     try {
         const response = await fetch(`${API_BASE}/admin.php`, {
@@ -1021,8 +1424,11 @@ async function addSubjectForStudent(studentId) {
             writtenActivities,
             writtenQuizzes,
             performance: performance.toString(),
+            performanceTasks,
+            performancePetaTasks,
+            performanceOtherTasks,
             quarterly: quarterly.toString(),
-            final: finalGrade.toString()
+            final: quarterlyGrade.toString()
         });
 
         const saveResponse = await fetch(`${API_BASE}/admin.php`, {
@@ -1127,10 +1533,21 @@ async function editSubject(studentId, subjectIndex) {
         const activities = Array.isArray(subject.writtenActivities) ? subject.writtenActivities : [];
         const quizzes = Array.isArray(subject.writtenQuizzes) ? subject.writtenQuizzes : [];
         const performanceValue = subject.performance ?? '';
+        const legacyPerformanceTasks = Array.isArray(subject.performanceTasks) ? subject.performanceTasks : [];
+        const performancePetaTasks = Array.isArray(subject.performancePetaTasks)
+            ? subject.performancePetaTasks
+            : (Array.isArray(subject.performancePeta) ? subject.performancePeta : []);
+        const performanceOtherTasks = Array.isArray(subject.performanceOtherTasks)
+            ? subject.performanceOtherTasks
+            : (Array.isArray(subject.performanceOther) ? subject.performanceOther : []);
+
+        const hasSplitPerf = performancePetaTasks.length || performanceOtherTasks.length;
+        const initPetaTasks = hasSplitPerf ? performancePetaTasks : legacyPerformanceTasks;
+        const initOtherTasks = hasSplitPerf ? performanceOtherTasks : [];
         const quarterlyValue = subject.quarterly ?? '';
 
         modal.innerHTML = `
-            <div class="modal-content" style="max-width: 760px; max-height: 80vh; overflow-y: auto; background:#ffffff; color:#111827; text-align:left;">
+            <div class="modal-content" style="width: 94vw; max-width: 980px; max-height: 80vh; overflow-y: auto; background:#ffffff; color:#111827; text-align:left;">
                 <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
                 <h2 style="color:#2563eb; margin-bottom: 0.25rem;"><i class="fas fa-pen"></i> Edit Subject</h2>
                 <p style="color:#6b7280; margin-top:0; margin-bottom: 1rem; font-size:0.9rem;">Update Activities + Quizzes (Written Works), Performance Tasks, and Quarterly Assessment.</p>
@@ -1161,7 +1578,7 @@ async function editSubject(studentId, subjectIndex) {
                                     <button type="button" class="small-btn" id="addEditActivityBtn"><i class="fas fa-plus"></i> Add</button>
                                 </div>
                                 <div class="ww-rows" id="editActivityRows"></div>
-                                <div class="ww-summary">Average: <b id="editActivityAvg">—</b></div>
+                                <div class="ww-summary">Percentage Score: <b id="editActivityAvg">—</b></div>
                             </div>
 
                             <div class="ww-panel">
@@ -1170,7 +1587,7 @@ async function editSubject(studentId, subjectIndex) {
                                     <button type="button" class="small-btn" id="addEditQuizBtn"><i class="fas fa-plus"></i> Add</button>
                                 </div>
                                 <div class="ww-rows" id="editQuizRows"></div>
-                                <div class="ww-summary">Average: <b id="editQuizAvg">—</b></div>
+                                <div class="ww-summary">Percentage Score: <b id="editQuizAvg">—</b></div>
                             </div>
                         </div>
 
@@ -1178,9 +1595,29 @@ async function editSubject(studentId, subjectIndex) {
                         <input type="number" id="editWritten" min="0" max="100" placeholder="Auto-calculated" readonly style="margin-top:10px;">
                     </div>
 
-                    <div class="form-group">
-                        <label>Performance Tasks (50%) *</label>
-                        <input type="number" id="editPerformance" min="0" max="100" placeholder="0-100" value="${escapeHtml(String(performanceValue))}">
+                    <div class="form-group" style="grid-column: 1 / -1;">
+                        <label>Performance Tasks (50%) (PETA) *</label>
+                        <div class="ww-grid" style="margin-top:8px;">
+                            <div class="ww-panel">
+                                <div class="ww-panel-head">
+                                    <div class="ww-panel-title"><i class="fas fa-tasks"></i> PETA</div>
+                                    <button type="button" class="small-btn" id="addEditPetaBtn"><i class="fas fa-plus"></i> Add</button>
+                                </div>
+                                <div class="ww-rows" id="editPetaRows"></div>
+                                <div class="ww-summary">Percentage Score: <b id="editPetaAvg">—</b></div>
+                            </div>
+
+                            <div class="ww-panel">
+                                <div class="ww-panel-head">
+                                    <div class="ww-panel-title"><i class="fas fa-clipboard-list"></i> Other Performance Tasks</div>
+                                    <button type="button" class="small-btn" id="addEditOtherPerformanceBtn"><i class="fas fa-plus"></i> Add</button>
+                                </div>
+                                <div class="ww-rows" id="editOtherPerformanceRows"></div>
+                                <div class="ww-summary">Percentage Score: <b id="editOtherPerformanceAvg">—</b></div>
+                            </div>
+                        </div>
+                        <div class="ww-summary" style="margin-top:10px;">Combined (Performance Tasks): <b id="editPerformanceCombined">—</b></div>
+                        <input type="number" id="editPerformance" min="0" max="100" placeholder="Auto-calculated" readonly style="margin-top:10px;" value="${escapeHtml(String(performanceValue))}">
                     </div>
                     <div class="form-group">
                         <label>Quarterly Assessment (20%) *</label>
@@ -1212,6 +1649,34 @@ async function editSubject(studentId, subjectIndex) {
             initialQuizzes: quizzes
         });
 
+        // initialize Performance Tasks (PETA) builder (split like Activities/Quizzes)
+        initDualEntriesBuilder({
+            leftRowsEl: modal.querySelector('#editPetaRows'),
+            rightRowsEl: modal.querySelector('#editOtherPerformanceRows'),
+            addLeftBtn: modal.querySelector('#addEditPetaBtn'),
+            addRightBtn: modal.querySelector('#addEditOtherPerformanceBtn'),
+            leftAvgEl: modal.querySelector('#editPetaAvg'),
+            rightAvgEl: modal.querySelector('#editOtherPerformanceAvg'),
+            combinedEl: modal.querySelector('#editPerformanceCombined'),
+            outputEl: modal.querySelector('#editPerformance'),
+            initialLeftEntries: initPetaTasks,
+            initialRightEntries: initOtherTasks,
+            leftTitlePrefix: 'PETA',
+            rightTitlePrefix: 'Task'
+        });
+
+        // If no performance entries exist but legacy performance exists, keep it visible
+        if (!legacyPerformanceTasks.length && !hasSplitPerf && performanceValue !== undefined && performanceValue !== null && String(performanceValue).trim() !== '') {
+            const legacyPerf = clampScore(parseFloat(performanceValue));
+            if (legacyPerf !== null) {
+                const v = String(round1(legacyPerf));
+                const perfInput = modal.querySelector('#editPerformance');
+                const perfAvg = modal.querySelector('#editPerformanceCombined');
+                if (perfInput) perfInput.value = v;
+                if (perfAvg) perfAvg.textContent = v;
+            }
+        }
+
         // If no Activities/Quizzes exist but legacy written exists, keep it visible
         if ((!activities.length && !quizzes.length) && subject.written) {
             const legacy = clampScore(parseFloat(subject.written));
@@ -1230,6 +1695,9 @@ async function editSubject(studentId, subjectIndex) {
 
             const newActivities = readWwEntries(modal.querySelector('#editActivityRows'));
             const newQuizzes = readWwEntries(modal.querySelector('#editQuizRows'));
+            const newPerformancePetaTasks = readWwEntries(modal.querySelector('#editPetaRows'));
+            const newPerformanceOtherTasks = readWwEntries(modal.querySelector('#editOtherPerformanceRows'));
+            const newPerformanceTasks = [...newPerformancePetaTasks, ...newPerformanceOtherTasks];
 
             if (!newTitle || !newQuarter || isNaN(newWritten) || isNaN(newPerformance) || isNaN(newQuarterlyScore)) {
                 alert('Please fill in subject name, quarter, and all grade components');
@@ -1255,6 +1723,26 @@ async function editSubject(studentId, subjectIndex) {
                     return;
                 }
             }
+
+            if (!newPerformanceTasks.length) {
+                // Backward compatibility: allow saving if this subject previously had legacy performance score
+                const hadLegacyPerf = subject && subject.performance !== undefined && subject.performance !== null && String(subject.performance).trim() !== '';
+                if (!hadLegacyPerf) {
+                    alert('Please add at least one Performance Task (PETA) entry.');
+                    return;
+                }
+            } else {
+                const petaCheck = newPerformancePetaTasks.length ? validateWwEntries(newPerformancePetaTasks) : { ok: true };
+                const otherCheck = newPerformanceOtherTasks.length ? validateWwEntries(newPerformanceOtherTasks) : { ok: true };
+                if (!petaCheck.ok) {
+                    alert('PETA: ' + petaCheck.error);
+                    return;
+                }
+                if (!otherCheck.ok) {
+                    alert('Other Performance Tasks: ' + otherCheck.error);
+                    return;
+                }
+            }
             if (
                 newWritten < 0 || newWritten > 100 ||
                 newPerformance < 0 || newPerformance > 100 ||
@@ -1264,7 +1752,11 @@ async function editSubject(studentId, subjectIndex) {
                 return;
             }
 
-            const finalGrade = Math.round(((newWritten * 0.30) + (newPerformance * 0.50) + (newQuarterlyScore * 0.20)) * 10) / 10;
+            const { quarterlyGrade } = computeDepEdFinalGrade({ writtenPS: newWritten, performancePS: newPerformance, quarterlyPS: newQuarterlyScore });
+            if (quarterlyGrade === null) {
+                alert('Unable to compute final grade. Please check inputs.');
+                return;
+            }
 
             subjects[subjectIndex] = {
                 ...subject,
@@ -1273,9 +1765,12 @@ async function editSubject(studentId, subjectIndex) {
                 written: round1(newWritten).toString(),
                 writtenActivities: newActivities,
                 writtenQuizzes: newQuizzes,
+                performanceTasks: newPerformanceTasks,
+                performancePetaTasks: newPerformancePetaTasks,
+                performanceOtherTasks: newPerformanceOtherTasks,
                 performance: round1(newPerformance).toString(),
                 quarterly: round1(newQuarterlyScore).toString(),
-                final: finalGrade.toString()
+                final: quarterlyGrade.toString()
             };
 
             const saveResponse = await fetch(`${API_BASE}/admin.php`, {
@@ -1385,23 +1880,41 @@ function showChildCodeModal(student) {
     const modal = document.createElement('div');
     modal.className = 'modal active';
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content" style="max-width: 560px; background:#ffffff; color:#111827; text-align:left; backdrop-filter:none;">
             <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
             <h2 style="margin-bottom: 1rem; color: #4CAF50;">
                 <i class="fas fa-check-circle"></i> Student Added Successfully!
             </h2>
-            <div style="background: rgba(76, 175, 80, 0.1); padding: 1.5rem; border-radius: 12px; border: 2px solid #4CAF50; margin: 1rem 0;">
-                <p style="margin-bottom: 0.5rem;"><strong>Student:</strong> ${student.name}</p>
-                <p style="margin-bottom: 1rem;"><strong>Grade:</strong> ${student.grade} - ${student.section}</p>
-                <p style="margin-bottom: 0.5rem; color: #82b2ff;"><strong><i class="fas fa-key"></i> Child Code:</strong></p>
-                <div style="background: rgba(0,0,0,0.3); padding: 1rem; border-radius: 8px; font-family: monospace; font-size: 1.3rem; letter-spacing: 2px; text-align: center; color: #4CAF50;">
-                    ${student.childCode}
+            <div style="background:#f0fdf4; padding: 1rem; border-radius: 12px; border: 1px solid #bbf7d0; margin: 1rem 0;">
+                <div style="display:grid; gap:6px;">
+                    <div><strong>Student:</strong> ${escapeHtml(student.name)}</div>
+                    <div><strong>Grade:</strong> ${escapeHtml(student.grade)} - ${escapeHtml(student.section)}</div>
                 </div>
-                <p style="margin-top: 0.5rem; font-size: 0.85rem; color: #aaa;">
-                    <i class="fas fa-info-circle"></i> Share this code with the parent so they can link their account
-                </p>
+
+                <div style="margin-top: 12px;">
+                    <div style="margin-bottom:6px; color:#065f46; font-weight:800;"><i class="fas fa-key"></i> Child Code</div>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <input
+                            type="text"
+                            value="${escapeHtml(student.childCode)}"
+                            readonly
+                            style="flex:1; width:100%; padding: 12px 12px; border-radius: 10px; border: 2px solid #16a34a; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 1.05rem; letter-spacing: 1px; color:#166534; background:#ffffff;"
+                            onclick="this.select()"
+                        />
+                        <button
+                            type="button"
+                            onclick="copyToClipboard('${student.childCode}'); this.textContent='Copied!'; setTimeout(()=>this.textContent='Copy', 1200)"
+                            style="white-space:nowrap; background: #16a34a; color: white; border: none; padding: 12px 14px; border-radius: 10px; cursor: pointer; font-weight:700;"
+                        >Copy</button>
+                    </div>
+                    <div style="margin-top: 8px; font-size: 0.9rem; color: #374151; line-height:1.4;">
+                        Share this code with the parent so they can link their account.
+                    </div>
+                </div>
             </div>
-            <button onclick="this.closest('.modal').remove()" class="btn btn-primary" style="width: 100%;">
+
+            <button type="button" onclick="this.closest('.modal').remove()"
+                style="background: #2563eb; color: white; border: none; padding: 12px 16px; border-radius: 10px; cursor: pointer; width: 100%; font-weight:700;">
                 Close
             </button>
         </div>
@@ -1763,66 +2276,6 @@ async function deleteStudent(studentId) {
     }
 }
 
-// Show Messages Modal
-async function showMessagesModal() {
-    try {
-        const response = await fetch(`${API_BASE}/admin.php`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'getMessages' })
-        });
-        
-        const result = await response.json();
-        
-        const modal = document.createElement('div');
-        modal.className = 'modal active';
-        modal.innerHTML = `
-            <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
-                <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
-                <h2 style="margin-bottom: 1.5rem;"><i class="fas fa-envelope"></i> Parent Messages</h2>
-                
-                ${result.success && result.messages.length > 0 ? 
-                    result.messages.map(msg => `
-                        <div class="message-item" style="background: rgba(255,255,255,0.05); border: 1px solid rgba(130, 178, 255, 0.2); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
-                            <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                                <strong style="color: #82b2ff;">
-                                    <i class="fas fa-user"></i> ${msg.senderName}
-                                </strong>
-                                <span style="color: #999; font-size: 0.85rem;">
-                                    <i class="fas fa-clock"></i> ${msg.timestamp}
-                                </span>
-                            </div>
-                            <div style="margin-bottom: 0.5rem;">
-                                <strong>Child:</strong> ${msg.childName}
-                            </div>
-                            ${msg.teacherUsername ? `<div style="margin-bottom: 0.5rem;"><strong>To Teacher:</strong> ${msg.teacherUsername}</div>` : ''}
-                            <div style="margin-bottom: 0.5rem;">
-                                <strong>Subject:</strong> ${msg.subject}
-                            </div>
-                            <div style="color: #ddd; padding: 0.5rem; background: rgba(0,0,0,0.2); border-radius: 6px;">
-                                ${msg.content}
-                            </div>
-                            <div style="margin-top: 0.5rem; font-size: 0.85rem; color: #aaa;">
-                                From: ${msg.sender}
-                            </div>
-                        </div>
-                    `).join('') 
-                    : '<p style="text-align: center; color: #999; padding: 2rem;">No messages yet</p>'
-                }
-                
-                <button onclick="this.closest('.modal').remove()" class="btn btn-secondary" style="width: 100%;">
-                    Close
-                </button>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        
-    } catch (error) {
-        console.error('Error loading messages:', error);
-        showNotif('Error loading messages');
-    }
-}
-
 // Logout Function
 function logout() {
     currentUser = null;
@@ -1839,7 +2292,6 @@ window.editStudentGrades = editStudentGrades;
 window.deleteStudent = deleteStudent;
 window.saveGrades = saveGrades;
 window.addSubjectRow = addSubjectRow;
-window.showMessagesModal = showMessagesModal;
 window.logout = logout;
 window.copyToClipboard = copyToClipboard;
 window.updateGradeStats = updateGradeStats;
@@ -1854,7 +2306,3 @@ window.addSubjectForStudent = addSubjectForStudent;
 window.deleteSubject = deleteSubject;
 window.editSubject = editSubject;
 
-// Initialize
-console.log('Academic Tracker System Initialized');
-console.log('Default Admin Login: username=admin, password=admin123');
-console.log('Default Teacher Login: username=teacher1, password=teacher123');
