@@ -683,9 +683,12 @@ async function openSubjectsModal(studentId) {
                     <i class="fas fa-book"></i> Subjects - ${student.name}
                 </h2>
 
-                <p style="color:#4b5563; margin-bottom: 1rem; font-size:0.9rem;">
-                    Add each subject and its Activities + Quizzes (this equals <b>Written Works</b>), Performance Tasks, and Quarterly Assessment. The final grade is calculated automatically.
-                </p>
+                <div style="background:#f9fafb; border:1px solid #e5e7eb; padding:12px; border-radius:12px; margin-bottom: 1rem;">
+                    <p style="color:#111827; margin:0; font-size:0.95rem; line-height:1.45;">
+                        Add each subject and its <b>Activities + Quizzes</b> (this equals <b>Written Works</b>), <b>Performance Tasks</b>, and <b>Quarterly Assessment</b>.
+                        The final grade is calculated automatically.
+                    </p>
+                </div>
 
                 <div style="margin-bottom:1.5rem;">
                     <h3 style="font-size:1rem; color:#374151; margin-bottom:0.5rem;">Current Subjects</h3>
