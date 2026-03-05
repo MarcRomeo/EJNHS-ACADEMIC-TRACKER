@@ -97,51 +97,6 @@ if (isset($_POST['login'])) {
     }
 }
 
-// --- Handle Message Send ---
-if (isset($_POST['send']) && isset($_SESSION['parent'])) {
-    $subject = trim($_POST['subject'] ?? '');
-    $msgContent = trim($_POST['message'] ?? '');
-    $teacherUsername = trim($_POST['teacher'] ?? '');
-    
-    if (empty($teacherUsername)) {
-        $message = "Please select a teacher.";
-        $messageType = "error";
-    } elseif (empty($subject) || empty($msgContent)) {
-        $message = "Subject and message are required!";
-        $messageType = "error";
-    } else {
-        // Optional: verify the selected teacher exists
-        $stmt = $pdo->prepare('SELECT username FROM admins WHERE username = :u AND role = "teacher" LIMIT 1');
-        $stmt->execute(['u' => $teacherUsername]);
-        $teacher = $stmt->fetch();
-
-        if (!$teacher) {
-            $message = "Selected teacher does not exist.";
-            $messageType = "error";
-        } else {
-            $timestamp = date('Y-m-d H:i:s');
-            $timestampUnix = time();
-
-            $insert = $pdo->prepare('INSERT INTO messages (sender_email, sender_name, child_name, teacher_username, subject, content, type, status, timestamp, timestamp_unix) VALUES (:sender_email, :sender_name, :child_name, :teacher_username, :subject, :content, :type, :status, :timestamp, :timestamp_unix)');
-            $insert->execute([
-                'sender_email' => $_SESSION['parent']['email'],
-                'sender_name' => $_SESSION['parent']['name'],
-                'child_name' => $_SESSION['parent']['child_name'],
-                'teacher_username' => $teacherUsername,
-                'subject' => $subject,
-                'content' => $msgContent,
-                'type' => 'parent-to-teacher',
-                'status' => 'unread',
-                'timestamp' => $timestamp,
-                'timestamp_unix' => $timestampUnix,
-            ]);
-            
-            $message = "Message sent to teacher successfully!";
-            $messageType = "success";
-        }
-    }
-}
-
 // --- Handle Logout ---
 if (isset($_GET['logout'])) {
     session_destroy();
@@ -197,14 +152,18 @@ if (isset($_GET['logout'])) {
             padding: 0.8rem;
             border: 1px solid rgba(130, 178, 255, 0.3);
             border-radius: 8px;
-            background: rgba(255, 255, 255, 0.1);
-            color: #fff;
+            background: rgba(255, 255, 255, 0.92);
+            color: #111827;
             font-family: 'Poppins', sans-serif;
             font-size: 1rem;
         }
         .form-group input::placeholder,
         .form-group textarea::placeholder {
-            color: rgba(255, 255, 255, 0.5);
+            color: #6b7280;
+        }
+        .form-group select option {
+            background: #ffffff;
+            color: #111827;
         }
         .form-group textarea {
             min-height: 120px;
@@ -276,42 +235,6 @@ if (isset($_GET['logout'])) {
         .welcome-header h2 {
             color: #82b2ff;
             margin-bottom: 1rem;
-        }
-        .messages-section {
-            background: rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(130, 178, 255, 0.3);
-            border-radius: 12px;
-            padding: 2rem;
-        }
-        .messages-section h2 {
-            color: #82b2ff;
-            margin-bottom: 1.5rem;
-            text-align: center;
-        }
-        .message-item {
-            background: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(130, 178, 255, 0.2);
-            border-radius: 8px;
-            padding: 1rem;
-            margin-bottom: 1rem;
-        }
-        .message-sender {
-            font-weight: 600;
-            color: #82b2ff;
-            margin-bottom: 0.5rem;
-        }
-        .message-subject {
-            font-weight: 500;
-            margin-bottom: 0.5rem;
-        }
-        .message-content {
-            color: #ddd;
-            margin-bottom: 0.5rem;
-        }
-        .message-time {
-            font-size: 0.85rem;
-            color: #999;
         }
         .signup-code-box {
             background: rgba(130, 178, 255, 0.1);
@@ -501,7 +424,7 @@ if (isset($_GET['logout'])) {
                 <?php
                 $hasGrades = false;
                 $exportStudents = [];
-                foreach ($linkedChildren as $childCode):
+                foreach ($linkedChildren as $childIndex => $childCode):
                     // Find student by child code from database
                     $stmt = $pdo->prepare('SELECT name, grade, section, subjects FROM students WHERE child_code = :code LIMIT 1');
                     $stmt->execute(['code' => $childCode]);
@@ -531,14 +454,56 @@ if (isset($_GET['logout'])) {
 
                             // Prepare data for PDF export
                             $exportSubjects = [];
-                            foreach ($subjects as $subject) {
+                            foreach ($subjects as $subIndex => $subject) {
                                 $displayGradeForExport = isset($subject['final']) ? $subject['final'] : ($subject['grade'] ?? '');
+
+                                $writtenActivities = [];
+                                if (!empty($subject['writtenActivities']) && is_array($subject['writtenActivities'])) {
+                                    $writtenActivities = $subject['writtenActivities'];
+                                } elseif (!empty($subject['activities']) && is_array($subject['activities'])) {
+                                    $writtenActivities = $subject['activities'];
+                                }
+
+                                $writtenQuizzes = [];
+                                if (!empty($subject['writtenQuizzes']) && is_array($subject['writtenQuizzes'])) {
+                                    $writtenQuizzes = $subject['writtenQuizzes'];
+                                } elseif (!empty($subject['quizzes']) && is_array($subject['quizzes'])) {
+                                    $writtenQuizzes = $subject['quizzes'];
+                                }
+
+                                $performancePetaTasks = [];
+                                if (!empty($subject['performancePetaTasks']) && is_array($subject['performancePetaTasks'])) {
+                                    $performancePetaTasks = $subject['performancePetaTasks'];
+                                } elseif (!empty($subject['performancePeta']) && is_array($subject['performancePeta'])) {
+                                    $performancePetaTasks = $subject['performancePeta'];
+                                }
+
+                                $performanceOtherTasks = [];
+                                if (!empty($subject['performanceOtherTasks']) && is_array($subject['performanceOtherTasks'])) {
+                                    $performanceOtherTasks = $subject['performanceOtherTasks'];
+                                } elseif (!empty($subject['performanceOther']) && is_array($subject['performanceOther'])) {
+                                    $performanceOtherTasks = $subject['performanceOther'];
+                                }
+
+                                $performanceTasks = [];
+                                if (!empty($subject['performanceTasks']) && is_array($subject['performanceTasks'])) {
+                                    $performanceTasks = $subject['performanceTasks'];
+                                }
+
+                                $quarterLabel = $subject['quarterLabel'] ?? ($subject['quarter'] ?? '');
+
                                 $exportSubjects[] = [
                                     'title' => $subject['title'] ?? '',
                                     'grade' => $displayGradeForExport,
                                     'written' => $subject['written'] ?? '',
                                     'performance' => $subject['performance'] ?? '',
                                     'quarterly' => $subject['quarterly'] ?? '',
+                                    'quarterLabel' => $quarterLabel,
+                                    'writtenActivities' => $writtenActivities,
+                                    'writtenQuizzes' => $writtenQuizzes,
+                                    'performancePetaTasks' => $performancePetaTasks,
+                                    'performanceOtherTasks' => $performanceOtherTasks,
+                                    'performanceTasks' => $performanceTasks,
                                 ];
                             }
 
@@ -566,7 +531,7 @@ if (isset($_GET['logout'])) {
                             </span>
                             <?php if (!empty($subjects)): ?>
                             <span style="color: #4CAF50;">
-                                <i class="fas fa-chart-line"></i> <strong>Average:</strong> <?php echo number_format($avgGrade, 1); ?>
+                                <i class="fas fa-chart-line"></i> <strong>General Average:</strong> <?php echo number_format($avgGrade, 0); ?>
                             </span>
                             <?php endif; ?>
                         </div>
@@ -580,7 +545,7 @@ if (isset($_GET['logout'])) {
                         </h4>
                         <p style="color:#aaa; font-size:0.9rem; margin-bottom:0.8rem;">Tip: Click a subject to see detailed Activities + Quizzes (Written Works), Performance Tasks, and Quarterly Assessment (if available).</p>
                         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.8rem;">
-                            <?php foreach ($subjects as $subject): 
+                            <?php foreach ($subjects as $subIndex => $subject): 
                                 $displayGrade = isset($subject['final']) ? $subject['final'] : ($subject['grade'] ?? '');
                                 $gradeValue = floatval($displayGrade);
                                 $gradeColor = $gradeValue >= 90 ? '#4CAF50' : ($gradeValue >= 80 ? '#8BC34A' : ($gradeValue >= 75 ? '#FFC107' : '#FF5722'));
@@ -588,6 +553,8 @@ if (isset($_GET['logout'])) {
                             ?>
                             <div class="subject-card" 
                                  style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; border-left: 4px solid <?php echo $gradeColor; ?>; cursor:pointer;"
+                                 data-student-index="<?php echo (int)$childIndex; ?>"
+                                 data-subject-index="<?php echo (int)$subIndex; ?>"
                                  data-subject-title="<?php echo htmlspecialchars($subject['title'] ?? ''); ?>"
                                  data-final-grade="<?php echo htmlspecialchars($displayGrade); ?>"
                                  data-written="<?php echo htmlspecialchars($subject['written'] ?? ''); ?>"
@@ -631,7 +598,7 @@ if (isset($_GET['logout'])) {
                     endforeach;
                 
                 if (!empty($exportStudents)) {
-                    echo '<script>window.parentGradesData = ' . json_encode($exportStudents) . ';</script>';
+                    echo '<script>window.parentGradesData = ' . json_encode($exportStudents) . '; window.parentGradesDataDetailed = window.parentGradesData;</script>';
                 }
 
                 if (!$hasGrades):
@@ -646,83 +613,6 @@ if (isset($_GET['logout'])) {
                 <?php endif; ?>
             </div>
             <?php endif; ?>
-
-            <!-- Message Section -->
-            <div class="parent-form">
-                <h2><i class="fas fa-envelope"></i> Send Message to Teacher</h2>
-                <p style="color: #aaa; margin-bottom: 1.5rem; text-align: center;">
-                    Request your child's grades or ask questions. Messages are sent directly to your selected teacher.
-                </p>
-                <form method="post">
-                    <div class="form-group">
-                        <label for="teacher"><i class="fas fa-user-tie"></i> Select Teacher *</label>
-                        <select id="teacher" name="teacher" required>
-                            <option value="">-- Choose Teacher --</option>
-                            <?php
-                            // Load teacher accounts (teacher1 - teacher5)
-                            $teacherStmt = $pdo->query("SELECT username, name FROM admins WHERE role = 'teacher' ORDER BY username");
-                            $teachers = $teacherStmt->fetchAll();
-                            foreach ($teachers as $t): ?>
-                                <option value="<?php echo htmlspecialchars($t['username']); ?>">
-                                    <?php echo htmlspecialchars($t['name'] . ' (' . $t['username'] . ')'); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label for="subject"><i class="fas fa-tag"></i> Subject *</label>
-                        <input type="text" id="subject" name="subject" placeholder="e.g., Grade Request for Quarter 2" required>
-                    </div>
-                    <div class="form-group">
-                        <label for="message"><i class="fas fa-comment"></i> Message *</label>
-                        <textarea id="message" name="message" placeholder="Type your message here..." required></textarea>
-                    </div>
-                    <div class="button-group">
-                        <button type="submit" name="send" class="btn btn-primary">
-                            <i class="fas fa-paper-plane"></i> Send Message
-                        </button>
-                    </div>
-                </form>
-            </div>
-
-            <!-- Messages History -->
-            <div class="messages-section">
-                <h2><i class="fas fa-history"></i> Your Message History</h2>
-                <?php
-                $histStmt = $pdo->prepare("SELECT subject, content, timestamp, teacher_username FROM messages WHERE sender_email = :email ORDER BY timestamp_unix DESC");
-                $histStmt->execute(['email' => $_SESSION['parent']['email']]);
-                $parentMessages = $histStmt->fetchAll();
-
-                if (!$parentMessages):
-                ?>
-                    <p style="text-align: center; color: #999; padding: 2rem 0;">
-                        <i class="fas fa-inbox" style="font-size: 3rem; display: block; margin-bottom: 1rem; opacity: 0.3;"></i>
-                        No messages yet. Send your first message above!
-                    </p>
-                <?php else: ?>
-                    <?php foreach ($parentMessages as $msg): ?>
-                        <div class="message-item">
-                            <div class="message-sender">
-                                <i class="fas fa-user-circle"></i> You
-                                <?php if (!empty($msg['teacher_username'])): ?>
-                                    <span style="margin-left: 0.5rem; font-size: 0.85rem; color: #ccc;">
-                                        &rarr; Teacher: <?php echo htmlspecialchars($msg['teacher_username']); ?>
-                                    </span>
-                                <?php endif; ?>
-                            </div>
-                            <div class="message-subject">
-                                <strong><i class="fas fa-tag"></i> Subject:</strong> <?php echo htmlspecialchars($msg['subject']); ?>
-                            </div>
-                            <div class="message-content">
-                                <?php echo nl2br(htmlspecialchars($msg['content'])); ?>
-                            </div>
-                            <div class="message-time">
-                                <i class="fas fa-clock"></i> Sent: <?php echo htmlspecialchars($msg['timestamp']); ?>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
-            </div>
 
         <?php endif; ?>
     </main>
@@ -739,6 +629,53 @@ document.addEventListener('DOMContentLoaded', function () {
 
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
+
+            function addWrappedText(text, x, y, maxWidth, lineHeight) {
+                const lines = doc.splitTextToSize(String(text || ''), maxWidth);
+                lines.forEach(function (ln) {
+                    if (y > 270) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    doc.text(ln, x, y);
+                    y += lineHeight;
+                });
+                return y;
+            }
+
+            function normalizeEntries(list) {
+                if (!Array.isArray(list)) return [];
+                return list
+                    .map(function (e) {
+                        if (!e || typeof e !== 'object') return null;
+                        return {
+                            title: (e.title || '').toString(),
+                            date: (e.date || '').toString(),
+                            score: (e.score ?? '').toString(),
+                            over: (e.over ?? (e.total ?? '')).toString()
+                        };
+                    })
+                    .filter(Boolean)
+                    .filter(function (e) {
+                        return (e.title || e.date || String(e.score).trim() !== '' || String(e.over).trim() !== '');
+                    });
+            }
+
+            function addEntriesSection(label, entries, x, y) {
+                const list = normalizeEntries(entries);
+                doc.setFontSize(10);
+                y = addWrappedText(label + ':', x, y, 170, 4.5);
+                if (!list.length) {
+                    y = addWrappedText('  - None', x, y, 170, 4.5);
+                    return y;
+                }
+                list.forEach(function (e) {
+                    const line = '  - ' + (e.title || 'Entry') + (e.date ? (' (' + e.date + ')') : '') +
+                        (String(e.score).trim() !== '' || String(e.over).trim() !== '' ? ('  ' + (e.score || '0') + '/' + (e.over || '0')) : '');
+                    y = addWrappedText(line, x, y, 170, 4.5);
+                });
+                return y;
+            }
 
             let y = 20;
             doc.setFontSize(16);
@@ -760,8 +697,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 doc.text('Grade: ' + (stu.grade || '') + '   Section: ' + (stu.section || ''), 20, y); y += 6;
 
                 if (stu.average && !isNaN(stu.average)) {
-                    const avgStr = (Math.round(stu.average * 10) / 10).toFixed(1);
-                    doc.text('Average: ' + avgStr, 20, y); y += 8;
+                    const avgStr = String(Math.round(stu.average));
+                    doc.text('General Average: ' + avgStr, 20, y); y += 8;
                 } else {
                     y += 4;
                 }
@@ -779,17 +716,40 @@ document.addEventListener('DOMContentLoaded', function () {
                         const p = sub.performance || '';
                         const q = sub.quarterly || '';
 
-                        let line = '- ' + title + ': ' + grade;
+                        const quarterLabel = sub.quarterLabel || '';
+                        const activities = sub.writtenActivities || [];
+                        const quizzes = sub.writtenQuizzes || [];
+                        const peta = sub.performancePetaTasks || [];
+                        const otherPerf = sub.performanceOtherTasks || [];
+                        const legacyPerf = sub.performanceTasks || [];
+
+                        const headParts = [];
+                        if (quarterLabel) headParts.push(quarterLabel);
+                        if (grade) headParts.push('Final: ' + grade);
+                        let head = '- ' + title;
+                        if (headParts.length) head += ' (' + headParts.join(' | ') + ')';
+                        y = addWrappedText(head, 25, y, 175, 5);
+
                         const parts = [];
-                        if (w) parts.push('Written: ' + w);
-                        if (p) parts.push('Performance: ' + p);
-                        if (q) parts.push('Quarterly: ' + q);
+                        if (w) parts.push('Written Works: ' + w);
+                        if (p) parts.push('Performance Tasks: ' + p);
+                        if (q) parts.push('Quarterly Assessment: ' + q);
                         if (parts.length) {
-                            line += ' (' + parts.join(', ') + ')';
+                            y = addWrappedText('  ' + parts.join('  |  '), 30, y, 170, 4.8);
                         }
 
-                        doc.text(line, 30, y);
-                        y += 5;
+                        y = addEntriesSection('  Activities', activities, 30, y);
+                        y = addEntriesSection('  Quizzes', quizzes, 30, y);
+
+                        const hasSplitPerf = (Array.isArray(peta) && peta.length) || (Array.isArray(otherPerf) && otherPerf.length);
+                        if (hasSplitPerf) {
+                            y = addEntriesSection('  PETA', peta, 30, y);
+                            y = addEntriesSection('  Other Performance Tasks', otherPerf, 30, y);
+                        } else {
+                            y = addEntriesSection('  Performance Tasks', legacyPerf, 30, y);
+                        }
+
+                        y += 2;
                     });
                 } else {
                     if (y > 270) {
@@ -809,12 +769,70 @@ document.addEventListener('DOMContentLoaded', function () {
     const subjectCards = document.querySelectorAll('.subject-card');
     subjectCards.forEach(function (card) {
         card.addEventListener('click', function () {
-            const title = card.getAttribute('data-subject-title') || 'Subject';
-            const finalGrade = card.getAttribute('data-final-grade') || '';
-            const written = card.getAttribute('data-written') || '';
-            const performance = card.getAttribute('data-performance') || '';
-            const quarterly = card.getAttribute('data-quarterly') || '';
-            const quarterLabel = card.getAttribute('data-quarter-label') || '';
+            const sIdx = parseInt(card.getAttribute('data-student-index') || '0', 10);
+            const subIdx = parseInt(card.getAttribute('data-subject-index') || '0', 10);
+            const data = (window.parentGradesDataDetailed && window.parentGradesDataDetailed[sIdx] && window.parentGradesDataDetailed[sIdx].subjects)
+                ? window.parentGradesDataDetailed[sIdx].subjects[subIdx]
+                : null;
+
+            const title = (data && data.title) ? data.title : (card.getAttribute('data-subject-title') || 'Subject');
+            const finalGrade = (data && data.grade) ? data.grade : (card.getAttribute('data-final-grade') || '');
+            const written = (data && data.written) ? data.written : (card.getAttribute('data-written') || '');
+            const performance = (data && data.performance) ? data.performance : (card.getAttribute('data-performance') || '');
+            const quarterly = (data && data.quarterly) ? data.quarterly : (card.getAttribute('data-quarterly') || '');
+            const quarterLabel = (data && data.quarterLabel) ? data.quarterLabel : (card.getAttribute('data-quarter-label') || '');
+
+            const activities = data && Array.isArray(data.writtenActivities) ? data.writtenActivities : [];
+            const quizzes = data && Array.isArray(data.writtenQuizzes) ? data.writtenQuizzes : [];
+            const peta = data && Array.isArray(data.performancePetaTasks) ? data.performancePetaTasks : [];
+            const otherPerf = data && Array.isArray(data.performanceOtherTasks) ? data.performanceOtherTasks : [];
+            const legacyPerf = data && Array.isArray(data.performanceTasks) ? data.performanceTasks : [];
+
+            function escapeHtml(str) {
+                return String(str ?? '')
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;')
+                    .replace(/"/g, '&quot;')
+                    .replace(/'/g, '&#39;');
+            }
+
+            function entriesTable(rows) {
+                const list = Array.isArray(rows) ? rows : [];
+                if (!list.length) {
+                    return '<div style="color:#aaa; font-size:0.9rem;">No entries.</div>';
+                }
+                return `
+                    <div style="overflow:auto; border:1px solid rgba(255,255,255,0.1); border-radius:8px;">
+                        <table style="width:100%; border-collapse:collapse; font-size:0.92rem;">
+                            <thead>
+                                <tr style="background: rgba(255,255,255,0.06);">
+                                    <th style="text-align:left; padding:8px; color:#ddd;">Title</th>
+                                    <th style="text-align:left; padding:8px; color:#ddd; white-space:nowrap;">Date</th>
+                                    <th style="text-align:right; padding:8px; color:#ddd; white-space:nowrap;">Score</th>
+                                    <th style="text-align:right; padding:8px; color:#ddd; white-space:nowrap;">Over</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${list.map(function (e) {
+                                    const title = escapeHtml(e && e.title ? e.title : '');
+                                    const date = escapeHtml(e && e.date ? e.date : '');
+                                    const score = escapeHtml(e && (e.score ?? '') !== undefined ? e.score : '');
+                                    const over = escapeHtml(e && (e.over ?? (e.total ?? '')) !== undefined ? (e.over ?? (e.total ?? '')) : '');
+                                    return `
+                                        <tr style="border-top:1px solid rgba(255,255,255,0.08);">
+                                            <td style="padding:8px; color:#fff; min-width:180px;">${title}</td>
+                                            <td style="padding:8px; color:#ddd; white-space:nowrap;">${date}</td>
+                                            <td style="padding:8px; color:#ddd; text-align:right; white-space:nowrap;">${score}</td>
+                                            <td style="padding:8px; color:#ddd; text-align:right; white-space:nowrap;">${over}</td>
+                                        </tr>
+                                    `;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+            }
 
             const overlay = document.createElement('div');
             overlay.style.position = 'fixed';
@@ -833,8 +851,10 @@ document.addEventListener('DOMContentLoaded', function () {
             box.style.border = '1px solid rgba(130,178,255,0.4)';
             box.style.borderRadius = '10px';
             box.style.padding = '1.5rem';
-            box.style.maxWidth = '400px';
-            box.style.width = '90%';
+            box.style.maxWidth = '980px';
+            box.style.width = '94%';
+            box.style.maxHeight = '85vh';
+            box.style.overflow = 'auto';
 
             box.innerHTML = `
                 <h3 style="color:#82b2ff; margin-top:0; margin-bottom:0.75rem;">
@@ -847,6 +867,28 @@ document.addEventListener('DOMContentLoaded', function () {
                     <p style="color:#a5d6a7; margin:0.25rem 0;"><strong>Performance Tasks (50%):</strong> ${performance || 'Not available'}</p>
                     <p style="color:#a5d6a7; margin:0.25rem 0;"><strong>Quarterly Assessment (20%):</strong> ${quarterly || 'Not available'}</p>
                 </div>
+
+                <div style="margin-top:1rem; display:grid; gap:12px;">
+                    <div>
+                        <div style="color:#a5d6a7; font-weight:700; margin-bottom:6px;">Activities</div>
+                        ${entriesTable(activities)}
+                    </div>
+                    <div>
+                        <div style="color:#a5d6a7; font-weight:700; margin-bottom:6px;">Quizzes</div>
+                        ${entriesTable(quizzes)}
+                    </div>
+                    <div>
+                        <div style="color:#a5d6a7; font-weight:700; margin-bottom:6px;">PETA</div>
+                        ${entriesTable(peta.length || otherPerf.length ? peta : legacyPerf)}
+                    </div>
+                    ${peta.length || otherPerf.length ? `
+                        <div>
+                            <div style="color:#a5d6a7; font-weight:700; margin-bottom:6px;">Other Performance Tasks</div>
+                            ${entriesTable(otherPerf)}
+                        </div>
+                    ` : ''}
+                </div>
+
                 <button style="margin-top:1rem; padding:0.5rem 1rem; border:none; border-radius:6px; background:#607D8B; color:#fff; cursor:pointer; width:100%;">
                     Close
                 </button>
@@ -854,6 +896,12 @@ document.addEventListener('DOMContentLoaded', function () {
 
             box.querySelector('button').addEventListener('click', function () {
                 document.body.removeChild(overlay);
+            });
+
+            overlay.addEventListener('click', function (e) {
+                if (e.target === overlay) {
+                    document.body.removeChild(overlay);
+                }
             });
 
             overlay.appendChild(box);
