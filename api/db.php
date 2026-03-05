@@ -144,6 +144,32 @@ try {
     // Ignore if the column already exists or IF NOT EXISTS is unsupported
 }
 
+// Ensure messages table supports two-way chat (parent <-> teacher)
+try {
+    $pdo->exec("ALTER TABLE messages ADD COLUMN IF NOT EXISTS parent_email VARCHAR(150) DEFAULT NULL AFTER sender_email");
+} catch (PDOException $e) {
+    // Ignore if the column already exists or IF NOT EXISTS is unsupported
+}
+
+try {
+    $pdo->exec("ALTER TABLE messages ADD COLUMN IF NOT EXISTS sender_role VARCHAR(20) NOT NULL DEFAULT 'parent' AFTER parent_email");
+} catch (PDOException $e) {
+    // Ignore if the column already exists or IF NOT EXISTS is unsupported
+}
+
+// Backfill existing rows for smoother upgrades
+try {
+    $pdo->exec("UPDATE messages SET parent_email = sender_email WHERE parent_email IS NULL OR parent_email = ''");
+} catch (PDOException $e) {
+    // Ignore if column does not exist yet
+}
+
+try {
+    $pdo->exec("UPDATE messages SET sender_role = 'parent' WHERE sender_role IS NULL OR sender_role = ''");
+} catch (PDOException $e) {
+    // Ignore if column does not exist yet
+}
+
 // Ensure default admin + 5 teacher accounts exist
 $stmt = $pdo->query('SELECT COUNT(*) AS cnt FROM admins');
 $row = $stmt->fetch();
