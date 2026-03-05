@@ -314,11 +314,8 @@ async function renderAdminDashboard() {
     
     document.getElementById('dashboardTitle').textContent = `Grade Management System`;
     
-    // Actions: Messages + Logout
+    // Simple logout button only
     dashActions.innerHTML = `
-        <button onclick="showMessagesModal()" class="btn btn-primary" style="padding: 0.6rem 1.2rem; margin-right: 0.5rem;">
-            <i class="fas fa-envelope"></i> Messages
-        </button>
         <button onclick="logout()" class="btn btn-secondary" style="padding: 0.6rem 1.2rem;">
             <i class="fas fa-sign-out-alt"></i> Logout
         </button>
@@ -686,12 +683,9 @@ async function openSubjectsModal(studentId) {
                     <i class="fas fa-book"></i> Subjects - ${student.name}
                 </h2>
 
-                <div style="background:#f9fafb; border:1px solid #e5e7eb; padding:12px; border-radius:12px; margin-bottom: 1rem;">
-                    <p style="color:#111827; margin:0; font-size:0.95rem; line-height:1.45;">
-                        Add each subject and its <b>Activities + Quizzes</b> (this equals <b>Written Works</b>), <b>Performance Tasks</b>, and <b>Quarterly Assessment</b>.
-                        The final grade is calculated automatically.
-                    </p>
-                </div>
+                <p style="color:#4b5563; margin-bottom: 1rem; font-size:0.9rem;">
+                    Add each subject and its Activities + Quizzes (this equals <b>Written Works</b>), Performance Tasks, and Quarterly Assessment. The final grade is calculated automatically.
+                </p>
 
                 <div style="margin-bottom:1.5rem;">
                     <h3 style="font-size:1rem; color:#374151; margin-bottom:0.5rem;">Current Subjects</h3>
@@ -1779,93 +1773,6 @@ async function showMessagesModal() {
         
         const modal = document.createElement('div');
         modal.className = 'modal active';
-
-        const all = (result && result.success && Array.isArray(result.messages)) ? result.messages : [];
-        const myUsername = currentUser?.username;
-        const myRole = currentUser?.role;
-
-        // Teachers see their own inbox; Admin sees everything
-        const messages = (myRole === 'teacher' && myUsername)
-            ? all.filter(m => m.teacherUsername === myUsername)
-            : all;
-
-        function esc(s) {
-            return String(s ?? '')
-                .replace(/&/g, '&amp;')
-                .replace(/</g, '&lt;')
-                .replace(/>/g, '&gt;')
-                .replace(/"/g, '&quot;')
-                .replace(/'/g, '&#39;');
-        }
-
-        function openReplyModal(msg) {
-            const replyModal = document.createElement('div');
-            replyModal.className = 'modal active';
-            const parentEmail = msg.parentEmail || msg.sender;
-            const subject = msg.subject ? (String(msg.subject).startsWith('Re:') ? msg.subject : ('Re: ' + msg.subject)) : 'Re:';
-
-            replyModal.innerHTML = `
-                <div class="modal-content" style="max-width: 650px;">
-                    <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
-                    <h2 style="margin-bottom: 1rem;"><i class="fas fa-reply"></i> Reply to Parent</h2>
-                    <div style="background: rgba(255,255,255,0.06); border: 1px solid rgba(130, 178, 255, 0.2); padding: 0.9rem; border-radius: 10px; margin-bottom: 1rem;">
-                        <div style="color:#ddd; margin-bottom:0.25rem;"><strong>Parent:</strong> ${esc(parentEmail)}</div>
-                        <div style="color:#ddd; margin-bottom:0.25rem;"><strong>Child:</strong> ${esc(msg.childName || '')}</div>
-                        <div style="color:#ddd;"><strong>Original Subject:</strong> ${esc(msg.subject || '')}</div>
-                    </div>
-
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label style="display:block; margin-bottom:0.35rem; font-weight:600; color:#82b2ff;">Subject</label>
-                        <input id="replySubject" type="text" value="${esc(subject)}" style="width:100%; padding:10px 12px; border-radius:8px; border: 1px solid rgba(130,178,255,0.3); background: rgba(255,255,255,0.08); color: #fff;" />
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0.75rem;">
-                        <label style="display:block; margin-bottom:0.35rem; font-weight:600; color:#82b2ff;">Message</label>
-                        <textarea id="replyContent" style="width:100%; min-height: 140px; padding:10px 12px; border-radius:8px; border: 1px solid rgba(130,178,255,0.3); background: rgba(255,255,255,0.08); color: #fff;"></textarea>
-                    </div>
-                    <button id="sendReplyBtn" class="btn btn-primary" style="width:100%;">
-                        <i class="fas fa-paper-plane"></i> Send Reply
-                    </button>
-                </div>
-            `;
-
-            replyModal.querySelector('#sendReplyBtn')?.addEventListener('click', async () => {
-                const replySubject = replyModal.querySelector('#replySubject')?.value?.trim() || 'Re:';
-                const replyContent = replyModal.querySelector('#replyContent')?.value?.trim() || '';
-                if (!replyContent) {
-                    showNotif('Please type a reply message');
-                    return;
-                }
-
-                try {
-                    const r = await fetch(`${API_BASE}/admin.php`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'sendTeacherReply',
-                            teacherUsername: myUsername,
-                            parentEmail: parentEmail,
-                            childName: msg.childName || '',
-                            subject: replySubject,
-                            content: replyContent
-                        })
-                    });
-                    const rr = await r.json();
-                    if (rr.success) {
-                        showNotif('Reply sent');
-                        replyModal.remove();
-                        modal.remove();
-                        showMessagesModal();
-                    } else {
-                        showNotif(rr.error || 'Failed to send reply');
-                    }
-                } catch (e) {
-                    console.error('Reply send error:', e);
-                    showNotif('Failed to send reply');
-                }
-            });
-
-            document.body.appendChild(replyModal);
-        }
         modal.innerHTML = `
             <div class="modal-content" style="max-width: 700px; max-height: 80vh; overflow-y: auto;">
                 <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
@@ -1907,54 +1814,37 @@ async function showMessagesModal() {
         `;
         document.body.appendChild(modal);
         
-        modal.innerHTML = `
+    } catch (error) {
         console.error('Error loading messages:', error);
         showNotif('Error loading messages');
-                <h2 style="margin-bottom: 1.2rem;"><i class="fas fa-envelope"></i> Inbox</h2>
-                <p style="margin-top:0; margin-bottom: 1rem; color:#aaa; font-size:0.9rem;">${myRole === 'teacher' ? 'Showing messages sent to you.' : 'Showing all messages.'}</p>
+    }
 }
-                ${messages.length > 0 ? 
-                    messages.map(msg => {
-                        const senderRole = msg.senderRole || 'parent';
-                        const isFromParent = senderRole === 'parent';
-                        const canReply = (myRole === 'teacher' || myRole === 'admin') && isFromParent && (myRole !== 'teacher' || msg.teacherUsername === myUsername);
-                        const badgeColor = isFromParent ? 'rgba(76, 175, 80, 0.18)' : 'rgba(130, 178, 255, 0.18)';
-                        const badgeBorder = isFromParent ? 'rgba(76, 175, 80, 0.35)' : 'rgba(130, 178, 255, 0.35)';
-                        const badgeText = isFromParent ? 'PARENT' : String(senderRole).toUpperCase();
-                        return `
+
+// Logout Function
 function logout() {
     currentUser = null;
     currentRole = null;
-                                    <i class="fas fa-user"></i> ${esc(msg.senderName || msg.sender || '')}
+    showSection('home');
     dashboardContent.innerHTML = '';
     dashActions.innerHTML = '';
     showNotif('Logged out successfully');
 }
 
-                            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:0.6rem;">
-                                <span style="display:inline-block; padding:2px 8px; border-radius: 999px; background:${badgeColor}; border: 1px solid ${badgeBorder}; color:#ddd; font-size: 0.75rem; letter-spacing:0.5px;">${badgeText}</span>
-                                ${msg.teacherUsername ? `<span style="display:inline-block; padding:2px 8px; border-radius: 999px; background: rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.12); color:#ddd; font-size:0.75rem;">To: ${esc(msg.teacherUsername)}</span>` : ''}
-                                ${msg.parentEmail ? `<span style="display:inline-block; padding:2px 8px; border-radius: 999px; background: rgba(0,0,0,0.25); border:1px solid rgba(255,255,255,0.12); color:#ddd; font-size:0.75rem;">Parent: ${esc(msg.parentEmail)}</span>` : ''}
-                            </div>
 // Make functions globally available
 window.showAddStudentModal = showAddStudentModal;
 window.editStudentGrades = editStudentGrades;
+window.deleteStudent = deleteStudent;
 window.saveGrades = saveGrades;
 window.addSubjectRow = addSubjectRow;
 window.showMessagesModal = showMessagesModal;
 window.logout = logout;
-                                ${esc(msg.content || '')}
+window.copyToClipboard = copyToClipboard;
 window.updateGradeStats = updateGradeStats;
-                            ${canReply ? `
-                                <div style="margin-top: 0.9rem; display:flex; justify-content:flex-end;">
-                                    <button type="button" class="btn btn-primary" style="padding:0.55rem 0.9rem; border-radius: 10px;" data-reply-id="${esc(msg.id)}">
-                                        <i class="fas fa-reply"></i> Reply
-                                    </button>
-                                </div>
-                            ` : ''}
+window.addMultipleSubjects = addMultipleSubjects;
+window.confirmQuickAdd = confirmQuickAdd;
+window.loadStudentsList = loadStudentsList;
 
-                    `;
-                    }).join('') 
+// New per-subject grading functions
 window.addStudentRecord = addStudentRecord;
 window.openSubjectsModal = openSubjectsModal;
 window.addSubjectForStudent = addSubjectForStudent;
@@ -1964,13 +1854,4 @@ window.editSubject = editSubject;
 // Initialize
 console.log('Academic Tracker System Initialized');
 console.log('Default Admin Login: username=admin, password=admin123');
-
-        // Wire Reply buttons
-        modal.querySelectorAll('[data-reply-id]').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const id = btn.getAttribute('data-reply-id');
-                const msg = messages.find(m => String(m.id) === String(id));
-                if (msg) openReplyModal(msg);
-            });
-        });
 console.log('Default Teacher Login: username=teacher1, password=teacher123');
