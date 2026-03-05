@@ -122,12 +122,9 @@ if (isset($_POST['send']) && isset($_SESSION['parent'])) {
             $timestamp = date('Y-m-d H:i:s');
             $timestampUnix = time();
 
-            $insert = $pdo->prepare('INSERT INTO messages (sender_email, parent_email, sender_role, sender_name, child_name, teacher_username, subject, content, type, status, timestamp, timestamp_unix)
-                VALUES (:sender_email, :parent_email, :sender_role, :sender_name, :child_name, :teacher_username, :subject, :content, :type, :status, :timestamp, :timestamp_unix)');
+            $insert = $pdo->prepare('INSERT INTO messages (sender_email, sender_name, child_name, teacher_username, subject, content, type, status, timestamp, timestamp_unix) VALUES (:sender_email, :sender_name, :child_name, :teacher_username, :subject, :content, :type, :status, :timestamp, :timestamp_unix)');
             $insert->execute([
                 'sender_email' => $_SESSION['parent']['email'],
-                'parent_email' => $_SESSION['parent']['email'],
-                'sender_role' => 'parent',
                 'sender_name' => $_SESSION['parent']['name'],
                 'child_name' => $_SESSION['parent']['child_name'],
                 'teacher_username' => $teacherUsername,
@@ -204,21 +201,6 @@ if (isset($_GET['logout'])) {
             color: #fff;
             font-family: 'Poppins', sans-serif;
             font-size: 1rem;
-        }
-
-        /* Fix teacher dropdown list readability across browsers */
-        .form-group select {
-            color-scheme: dark;
-            cursor: pointer;
-        }
-        .form-group select option {
-            background: #0b1220;
-            color: #ffffff;
-        }
-        .form-group select:focus {
-            outline: none;
-            border-color: rgba(130, 178, 255, 0.7);
-            box-shadow: 0 0 0 3px rgba(130, 178, 255, 0.18);
         }
         .form-group input::placeholder,
         .form-group textarea::placeholder {
@@ -551,30 +533,12 @@ if (isset($_GET['logout'])) {
                             $exportSubjects = [];
                             foreach ($subjects as $subject) {
                                 $displayGradeForExport = isset($subject['final']) ? $subject['final'] : ($subject['grade'] ?? '');
-                                $writtenActivities = [];
-                                $writtenQuizzes = [];
-                                if (isset($subject['writtenActivities']) && is_array($subject['writtenActivities'])) {
-                                    $writtenActivities = $subject['writtenActivities'];
-                                } elseif (isset($subject['activities']) && is_array($subject['activities'])) {
-                                    // Backward-compat alias
-                                    $writtenActivities = $subject['activities'];
-                                }
-                                if (isset($subject['writtenQuizzes']) && is_array($subject['writtenQuizzes'])) {
-                                    $writtenQuizzes = $subject['writtenQuizzes'];
-                                } elseif (isset($subject['quizzes']) && is_array($subject['quizzes'])) {
-                                    // Backward-compat alias
-                                    $writtenQuizzes = $subject['quizzes'];
-                                }
                                 $exportSubjects[] = [
                                     'title' => $subject['title'] ?? '',
                                     'grade' => $displayGradeForExport,
                                     'written' => $subject['written'] ?? '',
-                                    'writtenActivities' => $writtenActivities,
-                                    'writtenQuizzes' => $writtenQuizzes,
                                     'performance' => $subject['performance'] ?? '',
                                     'quarterly' => $subject['quarterly'] ?? '',
-                                    'quarterLabel' => $subject['quarterLabel'] ?? ($subject['quarter'] ?? ''),
-                                    'final' => $subject['final'] ?? ($subject['grade'] ?? ''),
                                 ];
                             }
 
@@ -585,8 +549,6 @@ if (isset($_GET['logout'])) {
                                 'average' => $avgGrade,
                                 'subjects' => $exportSubjects,
                             ];
-
-                            $exportStudentIndex = count($exportStudents) - 1;
                 ?>
                 
                 <div style="background: rgba(0,0,0,0.3); border: 2px solid rgba(130, 178, 255, 0.3); border-radius: 12px; padding: 1.5rem; margin-bottom: 1.5rem;">
@@ -618,7 +580,7 @@ if (isset($_GET['logout'])) {
                         </h4>
                         <p style="color:#aaa; font-size:0.9rem; margin-bottom:0.8rem;">Tip: Click a subject to see detailed Activities + Quizzes (Written Works), Performance Tasks, and Quarterly Assessment (if available).</p>
                         <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.8rem;">
-                               <?php foreach ($subjects as $subIndex => $subject): 
+                            <?php foreach ($subjects as $subject): 
                                 $displayGrade = isset($subject['final']) ? $subject['final'] : ($subject['grade'] ?? '');
                                 $gradeValue = floatval($displayGrade);
                                 $gradeColor = $gradeValue >= 90 ? '#4CAF50' : ($gradeValue >= 80 ? '#8BC34A' : ($gradeValue >= 75 ? '#FFC107' : '#FF5722'));
@@ -626,8 +588,6 @@ if (isset($_GET['logout'])) {
                             ?>
                             <div class="subject-card" 
                                  style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; border-left: 4px solid <?php echo $gradeColor; ?>; cursor:pointer;"
-                                   data-student-index="<?php echo htmlspecialchars((string)$exportStudentIndex); ?>"
-                                   data-subject-index="<?php echo htmlspecialchars((string)$subIndex); ?>"
                                  data-subject-title="<?php echo htmlspecialchars($subject['title'] ?? ''); ?>"
                                  data-final-grade="<?php echo htmlspecialchars($displayGrade); ?>"
                                  data-written="<?php echo htmlspecialchars($subject['written'] ?? ''); ?>"
@@ -729,10 +689,7 @@ if (isset($_GET['logout'])) {
             <div class="messages-section">
                 <h2><i class="fas fa-history"></i> Your Message History</h2>
                 <?php
-                $histStmt = $pdo->prepare("SELECT id, sender_email, parent_email, sender_role, sender_name, child_name, teacher_username, subject, content, timestamp, status
-                    FROM messages
-                    WHERE (parent_email = :email OR sender_email = :email)
-                    ORDER BY timestamp_unix DESC");
+                $histStmt = $pdo->prepare("SELECT subject, content, timestamp, teacher_username FROM messages WHERE sender_email = :email ORDER BY timestamp_unix DESC");
                 $histStmt->execute(['email' => $_SESSION['parent']['email']]);
                 $parentMessages = $histStmt->fetchAll();
 
@@ -744,46 +701,23 @@ if (isset($_GET['logout'])) {
                     </p>
                 <?php else: ?>
                     <?php foreach ($parentMessages as $msg): ?>
-                        <?php
-                            $senderRole = $msg['sender_role'] ?? 'parent';
-                            $isFromParent = ($senderRole === 'parent');
-                            $isFromTeacher = ($senderRole === 'teacher' || $senderRole === 'admin');
-                            $toTeacher = $msg['teacher_username'] ?? '';
-                            $replyTeacher = $toTeacher;
-                            $safeSubject = $msg['subject'] ?? '';
-                        ?>
                         <div class="message-item">
                             <div class="message-sender">
-                                <i class="fas fa-user-circle"></i>
-                                <?php if ($isFromParent): ?>
-                                    You
-                                <?php else: ?>
-                                    <?php echo htmlspecialchars($msg['sender_name'] ?? 'Teacher'); ?>
+                                <i class="fas fa-user-circle"></i> You
+                                <?php if (!empty($msg['teacher_username'])): ?>
                                     <span style="margin-left: 0.5rem; font-size: 0.85rem; color: #ccc;">
-                                        (<?php echo htmlspecialchars($msg['sender_role'] ?? 'teacher'); ?>)
+                                        &rarr; Teacher: <?php echo htmlspecialchars($msg['teacher_username']); ?>
                                     </span>
                                 <?php endif; ?>
                             </div>
                             <div class="message-subject">
                                 <strong><i class="fas fa-tag"></i> Subject:</strong> <?php echo htmlspecialchars($msg['subject']); ?>
                             </div>
-                            <?php if (!empty($toTeacher)): ?>
-                                <div style="margin-top: 0.4rem; color:#cbd5e1; font-size: 0.9rem;">
-                                    <i class="fas fa-user-tie"></i>
-                                    <strong>Teacher:</strong> <?php echo htmlspecialchars($toTeacher); ?>
-                                </div>
-                            <?php endif; ?>
                             <div class="message-content">
                                 <?php echo nl2br(htmlspecialchars($msg['content'])); ?>
                             </div>
                             <div class="message-time">
                                 <i class="fas fa-clock"></i> Sent: <?php echo htmlspecialchars($msg['timestamp']); ?>
-                            </div>
-
-                            <div style="margin-top: 0.8rem; display:flex; gap:10px;">
-                                <button type="button" class="btn btn-secondary" style="padding: 0.55rem 0.9rem; border-radius: 10px;" onclick="prefillReply(<?php echo json_encode($replyTeacher); ?>, <?php echo json_encode($safeSubject); ?>)">
-                                    <i class="fas fa-reply"></i> Reply
-                                </button>
                             </div>
                         </div>
                     <?php endforeach; ?>
@@ -795,28 +729,6 @@ if (isset($_GET['logout'])) {
 </body>
 <script>
 document.addEventListener('DOMContentLoaded', function () {
-    window.prefillReply = function (teacherUsername, subject) {
-        const teacherSelect = document.getElementById('teacher');
-        const subjectInput = document.getElementById('subject');
-        const messageBox = document.getElementById('message');
-
-        if (teacherSelect && teacherUsername) {
-            teacherSelect.value = teacherUsername;
-        }
-        if (subjectInput) {
-            const s = String(subject || '').trim();
-            subjectInput.value = s ? (s.startsWith('Re:') ? s : ('Re: ' + s)) : 'Re:';
-        }
-        if (messageBox) {
-            messageBox.focus();
-        }
-
-        const form = document.querySelector('.parent-form form');
-        if (form) {
-            form.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
-    };
-
     const btn = document.getElementById('downloadPdfBtn');
     if (btn) {
         btn.addEventListener('click', function () {
@@ -828,50 +740,6 @@ document.addEventListener('DOMContentLoaded', function () {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
-            const pageBottomY = 270;
-            const leftX = 18;
-            const indentX = 26;
-            const wrapWidth = 170;
-
-            function ensureSpace(linesNeeded) {
-                const needed = (linesNeeded || 1) * 5;
-                if (y + needed > pageBottomY) {
-                    doc.addPage();
-                    y = 20;
-                }
-            }
-
-            function writeWrapped(text, x, fontSize) {
-                const size = fontSize || 11;
-                doc.setFontSize(size);
-                const lines = doc.splitTextToSize(String(text || ''), wrapWidth);
-                ensureSpace(lines.length);
-                doc.text(lines, x, y);
-                y += lines.length * 5;
-            }
-
-            function formatEntryList(entries) {
-                if (!Array.isArray(entries) || !entries.length) return [];
-                return entries
-                    .map(function (e) {
-                        const date = (e && e.date) ? String(e.date) : '';
-                        const score = (e && (e.score !== undefined && e.score !== null)) ? String(e.score) : '';
-                        if (!date && !score) return null;
-                        return (date ? date + ': ' : '') + (score ? score : '');
-                    })
-                    .filter(Boolean);
-            }
-
-            function computeAvgFromEntries(entries) {
-                if (!Array.isArray(entries) || !entries.length) return null;
-                const nums = entries
-                    .map(e => parseFloat(e && e.score !== undefined ? e.score : NaN))
-                    .filter(v => Number.isFinite(v));
-                if (!nums.length) return null;
-                const avg = nums.reduce((s, v) => s + v, 0) / nums.length;
-                return Math.round(avg * 10) / 10;
-            }
-
             let y = 20;
             doc.setFontSize(16);
             doc.text('Student Grade Report', 105, y, { align: 'center' });
@@ -882,15 +750,18 @@ document.addEventListener('DOMContentLoaded', function () {
                     y += 8;
                 }
 
-                ensureSpace(4);
+                if (y > 270) {
+                    doc.addPage();
+                    y = 20;
+                }
 
                 doc.setFontSize(12);
-                doc.text('Student: ' + (stu.name || ''), leftX, y); y += 6;
-                doc.text('Grade: ' + (stu.grade || '') + '   Section: ' + (stu.section || ''), leftX, y); y += 6;
+                doc.text('Student: ' + (stu.name || ''), 20, y); y += 6;
+                doc.text('Grade: ' + (stu.grade || '') + '   Section: ' + (stu.section || ''), 20, y); y += 6;
 
                 if (stu.average && !isNaN(stu.average)) {
                     const avgStr = (Math.round(stu.average * 10) / 10).toFixed(1);
-                    doc.text('Average: ' + avgStr, leftX, y); y += 8;
+                    doc.text('Average: ' + avgStr, 20, y); y += 8;
                 } else {
                     y += 4;
                 }
@@ -898,58 +769,34 @@ document.addEventListener('DOMContentLoaded', function () {
                 doc.setFontSize(11);
                 if (stu.subjects && stu.subjects.length) {
                     stu.subjects.forEach(function (sub) {
+                        if (y > 270) {
+                            doc.addPage();
+                            y = 20;
+                        }
                         const title = sub.title || 'Subject';
-                        const quarterLabel = sub.quarterLabel || '';
-                        const finalGrade = sub.final || sub.grade || '';
-                        const written = sub.written || '';
-                        const performance = sub.performance || '';
-                        const quarterly = sub.quarterly || '';
+                        const grade = sub.grade || '';
+                        const w = sub.written || '';
+                        const p = sub.performance || '';
+                        const q = sub.quarterly || '';
 
-                        const activitiesLines = formatEntryList(sub.writtenActivities);
-                        const quizzesLines = formatEntryList(sub.writtenQuizzes);
-
-                        const computedWritten = (written ? null : (() => {
-                            const all = [];
-                            if (Array.isArray(sub.writtenActivities)) all.push(...sub.writtenActivities);
-                            if (Array.isArray(sub.writtenQuizzes)) all.push(...sub.writtenQuizzes);
-                            const avg = computeAvgFromEntries(all);
-                            return avg === null ? null : String(avg);
-                        })());
-                        const writtenToShow = written || (computedWritten || '');
-
-                        // Subject header
-                        writeWrapped('- ' + title + (quarterLabel ? ' (' + quarterLabel + ')' : '') + ': ' + finalGrade, indentX, 11);
-
-                        // Components
-                        if (written || activitiesLines.length || quizzesLines.length) {
-                            writeWrapped('  Written Works (Activities + Quizzes): ' + (writtenToShow || 'N/A'), indentX, 10);
+                        let line = '- ' + title + ': ' + grade;
+                        const parts = [];
+                        if (w) parts.push('Written: ' + w);
+                        if (p) parts.push('Performance: ' + p);
+                        if (q) parts.push('Quarterly: ' + q);
+                        if (parts.length) {
+                            line += ' (' + parts.join(', ') + ')';
                         }
 
-                        if (activitiesLines.length) {
-                            writeWrapped('    Activities:', indentX, 10);
-                            activitiesLines.forEach(function (ln) {
-                                writeWrapped('      - ' + ln, indentX, 10);
-                            });
-                        }
-                        if (quizzesLines.length) {
-                            writeWrapped('    Quizzes:', indentX, 10);
-                            quizzesLines.forEach(function (ln) {
-                                writeWrapped('      - ' + ln, indentX, 10);
-                            });
-                        }
-
-                        if (performance) {
-                            writeWrapped('  Performance Tasks (PETA): ' + performance, indentX, 10);
-                        }
-                        if (quarterly) {
-                            writeWrapped('  Quarterly Exam: ' + quarterly, indentX, 10);
-                        }
-
-                        y += 2;
+                        doc.text(line, 30, y);
+                        y += 5;
                     });
                 } else {
-                    ensureSpace(1);
-                    doc.text('- No subject grades entered yet', indentX, y);
+                    if (y > 270) {
+                        doc.addPage();
+                        y = 20;
+                    }
+                    doc.text('- No subject grades entered yet', 30, y);
                     y += 5;
                 }
             });
@@ -963,59 +810,11 @@ document.addEventListener('DOMContentLoaded', function () {
     subjectCards.forEach(function (card) {
         card.addEventListener('click', function () {
             const title = card.getAttribute('data-subject-title') || 'Subject';
-            const quarterLabel = card.getAttribute('data-quarter-label') || '';
             const finalGrade = card.getAttribute('data-final-grade') || '';
-
-            // Prefer full data from window.parentGradesData via indexes (includes Activities/Quizzes lists)
-            const stuIdx = parseInt(card.getAttribute('data-student-index') || '', 10);
-            const subIdx = parseInt(card.getAttribute('data-subject-index') || '', 10);
-            const subjectData = (
-                Number.isFinite(stuIdx) && Number.isFinite(subIdx) &&
-                window.parentGradesData && window.parentGradesData[stuIdx] &&
-                window.parentGradesData[stuIdx].subjects && window.parentGradesData[stuIdx].subjects[subIdx]
-            ) ? window.parentGradesData[stuIdx].subjects[subIdx] : null;
-
-            const written = (subjectData && subjectData.written) ? subjectData.written : (card.getAttribute('data-written') || '');
-            const performance = (subjectData && subjectData.performance) ? subjectData.performance : (card.getAttribute('data-performance') || '');
-            const quarterly = (subjectData && subjectData.quarterly) ? subjectData.quarterly : (card.getAttribute('data-quarterly') || '');
-            const activities = (subjectData && Array.isArray(subjectData.writtenActivities)) ? subjectData.writtenActivities : [];
-            const quizzes = (subjectData && Array.isArray(subjectData.writtenQuizzes)) ? subjectData.writtenQuizzes : [];
-
-            function computeAvg(list) {
-                if (!Array.isArray(list) || !list.length) return null;
-                const nums = list
-                    .map(e => parseFloat(e && e.score !== undefined ? e.score : NaN))
-                    .filter(v => Number.isFinite(v));
-                if (!nums.length) return null;
-                const avg = nums.reduce((s, v) => s + v, 0) / nums.length;
-                return Math.round(avg * 10) / 10;
-            }
-
-            const computedWritten = (written ? null : (() => {
-                const avg = computeAvg([].concat(activities || [], quizzes || []));
-                return avg === null ? null : String(avg);
-            })());
-            const writtenToShow = written || (computedWritten || '');
-
-            function renderEntryList(list) {
-                if (!Array.isArray(list) || !list.length) return '<p style="color:#9aa0a6; margin:0.25rem 0;">No entries yet.</p>';
-                return `
-                    <div style="margin-top:0.4rem; display:grid; gap:6px;">
-                        ${list.map(e => {
-                            const d = (e && e.date) ? String(e.date) : '';
-                            const s = (e && (e.score !== undefined && e.score !== null)) ? String(e.score) : '';
-                            const label = (d ? `<span style=\"color:#bbb;\">${d}</span>` : '<span style="color:#bbb;">—</span>');
-                            const score = (s ? `<span style=\"color:#fff; font-weight:600;\">${s}</span>` : '<span style="color:#fff; font-weight:600;">—</span>');
-                            return `
-                                <div style="display:flex; justify-content:space-between; gap:12px; padding:8px 10px; border:1px solid rgba(255,255,255,0.12); border-radius:8px; background: rgba(255,255,255,0.04);">
-                                    ${label}
-                                    ${score}
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                `;
-            }
+            const written = card.getAttribute('data-written') || '';
+            const performance = card.getAttribute('data-performance') || '';
+            const quarterly = card.getAttribute('data-quarterly') || '';
+            const quarterLabel = card.getAttribute('data-quarter-label') || '';
 
             const overlay = document.createElement('div');
             overlay.style.position = 'fixed';
@@ -1044,19 +843,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 ${quarterLabel ? `<p style="color:#a5d6a7; margin:0.25rem 0;"><strong>Quarter:</strong> ${quarterLabel}</p>` : ''}
                 <p style="color:#ddd; margin:0.25rem 0;"><strong>Final Grade:</strong> ${finalGrade || 'N/A'}</p>
                 <div style="margin-top:0.75rem;">
-                    <p style="color:#a5d6a7; margin:0.25rem 0;"><strong>Written Works (30%):</strong> ${(writtenToShow || 'Not available')}</p>
-                    <div style="margin-top:0.6rem;">
-                        <p style="color:#a5d6a7; margin:0.25rem 0;"><strong>Activities</strong></p>
-                        ${renderEntryList(activities)}
-                    </div>
-                    <div style="margin-top:0.8rem;">
-                        <p style="color:#a5d6a7; margin:0.25rem 0;"><strong>Quizzes</strong></p>
-                        ${renderEntryList(quizzes)}
-                    </div>
-                    <div style="margin-top:0.9rem;">
-                        <p style="color:#a5d6a7; margin:0.25rem 0;"><strong>PETA / Performance Tasks (50%):</strong> ${performance || 'Not available'}</p>
-                        <p style="color:#a5d6a7; margin:0.25rem 0;"><strong>Quarterly Exam (20%):</strong> ${quarterly || 'Not available'}</p>
-                    </div>
+                    <p style="color:#a5d6a7; margin:0.25rem 0;"><strong>Written Works (30%) (Activities + Quizzes):</strong> ${written || 'Not available'}</p>
+                    <p style="color:#a5d6a7; margin:0.25rem 0;"><strong>Performance Tasks (50%):</strong> ${performance || 'Not available'}</p>
+                    <p style="color:#a5d6a7; margin:0.25rem 0;"><strong>Quarterly Assessment (20%):</strong> ${quarterly || 'Not available'}</p>
                 </div>
                 <button style="margin-top:1rem; padding:0.5rem 1rem; border:none; border-radius:6px; background:#607D8B; color:#fff; cursor:pointer; width:100%;">
                     Close
