@@ -93,6 +93,7 @@ $schemaStatements = [
         id INT AUTO_INCREMENT PRIMARY KEY,
         name VARCHAR(150) NOT NULL,
         grade VARCHAR(50) NOT NULL,
+        strand VARCHAR(50) NOT NULL DEFAULT '',
         section VARCHAR(50) NOT NULL,
         child_code VARCHAR(32) NOT NULL UNIQUE,
         subjects TEXT NOT NULL,
@@ -135,6 +136,13 @@ $schemaStatements = [
 
 foreach ($schemaStatements as $sql) {
     $pdo->exec($sql);
+}
+
+// Ensure students table has strand column (for older installs)
+try {
+    $pdo->exec("ALTER TABLE students ADD COLUMN strand VARCHAR(50) NOT NULL DEFAULT '' AFTER grade");
+} catch (PDOException $e) {
+    // Ignore if column already exists
 }
 
 // Ensure messages table has teacher_username column (for older installs)
