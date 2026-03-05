@@ -307,18 +307,33 @@
       }
 
       container.innerHTML = students.map(student => {
-        const subjects = student.subjects || [];
-        
-        // Get grade components
-        const writtenWorks = subjects.find(s => s.title === 'Written Works (30%)')?.grade || 'N/A';
-        const performanceTasks = subjects.find(s => s.title === 'Performance Tasks (50%)')?.grade || 'N/A';
-        const quarterlyAssessment = subjects.find(s => s.title === 'Quarterly Assessment (20%)')?.grade || 'N/A';
-        const finalGrade = subjects.find(s => s.title === 'Final Grade')?.grade || 'N/A';
-        
-        // Determine if passed or failed
-        const gradeNum = parseFloat(finalGrade);
+        const subjects = Array.isArray(student.subjects) ? student.subjects : [];
+
+        const finals = subjects
+          .map(s => parseFloat((s && (s.final ?? s.grade)) ?? ''))
+          .filter(v => Number.isFinite(v));
+
+        const generalAvg = finals.length ? finals.reduce((a, b) => a + b, 0) / finals.length : null;
+        const generalAvgText = generalAvg === null ? 'N/A' : String(Math.round(generalAvg));
+
+        const gradeNum = generalAvg === null ? NaN : generalAvg;
         const passedClass = gradeNum >= 75 ? 'passed' : 'failed';
         const passedText = gradeNum >= 75 ? 'PASSED' : 'FAILED';
+
+        const subjectRows = subjects.length
+          ? subjects.map(sub => {
+              const title = sub.title || 'Subject';
+              const quarter = sub.quarterLabel || sub.quarter || '';
+              const g = (sub.final ?? sub.grade);
+              const gText = (g === undefined || g === null || String(g).trim() === '') ? 'N/A' : String(g);
+              return `
+                <div class="grade-row">
+                  <span class="grade-label">${title}${quarter ? ` <span style="color:#6b7280;font-size:0.85rem;">(${quarter})</span>` : ''}</span>
+                  <span class="grade-value">${gText}</span>
+                </div>
+              `;
+            }).join('')
+          : '<p style="color:#9ca3af; padding: 10px 0;">No grades available yet.</p>';
         
         return `
           <div class="student-card">
@@ -329,24 +344,11 @@
 
             <hr>
 
-            <div class="grade-row">
-              <span class="grade-label">Written Works (30%)</span>
-              <span class="grade-value">${writtenWorks}</span>
-            </div>
-
-            <div class="grade-row">
-              <span class="grade-label">Performance Tasks (50%)</span>
-              <span class="grade-value">${performanceTasks}</span>
-            </div>
-
-            <div class="grade-row">
-              <span class="grade-label">Quarterly Assessment (20%)</span>
-              <span class="grade-value">${quarterlyAssessment}</span>
-            </div>
+            ${subjectRows}
 
             <div class="final-grade">
-              <div class="final-grade-label">FINAL GRADE</div>
-              <div class="final-grade-value ${passedClass}">${finalGrade}</div>
+              <div class="final-grade-label">GENERAL AVERAGE</div>
+              <div class="final-grade-value ${passedClass}">${generalAvgText}</div>
               <div style="margin-top: 8px;">
                 <span class="${passedClass}" style="font-size: 1.1rem;">${passedText}</span>
               </div>
